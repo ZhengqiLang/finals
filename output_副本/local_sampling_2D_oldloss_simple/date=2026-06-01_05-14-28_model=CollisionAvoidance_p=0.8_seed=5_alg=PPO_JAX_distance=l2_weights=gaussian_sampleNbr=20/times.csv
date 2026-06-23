@@ -1,0 +1,27 @@
+,time [s]
+initialize,0.003263
+pretrain_policy,7.696486
+initialize_CEGIS,0.249436
+iter0_learner,3.365402
+iter0_plot,0.204795
+iter0_verifier,1.302388
+iter0_process_counterexamples,0.023733
+iter1_learner,3.894508
+iter1_plot,0.004768
+iter1_verifier,0.954711
+iter1_process_counterexamples,0.024724
+iter2_learner,2.698361
+iter2_plot,0.004667
+iter2_verifier,1.058858
+iter2_process_counterexamples,0.025382
+iter3_learner,3.077284
+iter3_plot,0.004584
+iter3_verifier,1.04823
+iter3_process_counterexamples,0.025249
+iter4_learner,2.898031
+iter4_plot,0.00701
+iter4_verifier,1.12234
+iter4_process_counterexamples,0.024153
+iter5_learner,2.922517
+iter5_plot,0.005003
+iter5_verifier,134.72198

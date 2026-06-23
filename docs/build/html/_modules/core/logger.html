@@ -1,0 +1,343 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>core.logger &mdash; logRASM v1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=5cb08e4e"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            logRASM
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html">Policy Verification in Stochastic Dynamical Systems Using Logarithmic Neural Certificates</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html#what-does-this-code-do">1. What does this code do?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html#run-from-a-docker-container-preferred">2. Run from a Docker container (preferred)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html#installing-from-source">3. Installing from source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html#running-for-a-single-benchmark-smoke-test">4. Running for a single benchmark (smoke test)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html#reproducing-results-from-the-paper">5. Reproducing results from the paper</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html#training-policies-with-stable-baselines">6. Training policies with Stable-Baselines</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html#overview-of-input-arguments">7. Overview of input arguments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html#rebuilding-the-docker-container">8. Rebuilding the Docker container</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">Code documentation</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">logRASM</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">core.logger</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for core.logger</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">core.jax_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">lipschitz_coeff</span>
+
+
+<div class="viewcode-block" id="Logger">
+<a class="viewcode-back" href="../../core.html#core.logger.Logger">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">Logger</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39; Class to export results to csv files &#39;&#39;&#39;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">output_folder</span><span class="p">,</span> <span class="n">round_decimals</span><span class="o">=-</span><span class="mi">1</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Initialize the logger class. </span>
+
+<span class="sd">        :param output_folder: path to the folder where the outputs are stored. </span>
+<span class="sd">        :param round_decimals: Round decimal values to the specified number of places, or -1 for no rounding. </span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="c1"># Create output folder</span>
+        <span class="n">Path</span><span class="p">(</span><span class="n">output_folder</span><span class="p">)</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># Set an initial timer</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_timer</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">round_decimals</span> <span class="o">=</span> <span class="n">round_decimals</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">times</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">times_series</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">times</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Lipschitz_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({},</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">output_folder</span> <span class="o">=</span> <span class="n">output_folder</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">info_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_folder</span><span class="p">,</span> <span class="s1">&#39;info.csv&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">times_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_folder</span><span class="p">,</span> <span class="s1">&#39;times.csv&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">args_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_folder</span><span class="p">,</span> <span class="s1">&#39;args.csv&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Lipschitz_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_folder</span><span class="p">,</span> <span class="s1">&#39;lipschitz.csv&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">violations_per_iteration</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">info</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">return</span>
+
+<div class="viewcode-block" id="Logger.export_args">
+<a class="viewcode-back" href="../../core.html#core.logger.Logger.export_args">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">export_args</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Exports all arguments to a csv file.</span>
+
+<span class="sd">        :param args: Command line arguments given. </span>
+<span class="sd">        :return:</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="nb">dict</span> <span class="o">=</span> <span class="nb">vars</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+        <span class="n">args_series</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="nb">dict</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;arguments&quot;</span><span class="p">)</span>
+        <span class="n">args_series</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">args_path</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Logger.set_timer">
+<a class="viewcode-back" href="../../core.html#core.logger.Logger.set_timer">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_timer</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Store current time.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">curr_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="Logger.get_timer_value">
+<a class="viewcode-back" href="../../core.html#core.logger.Logger.get_timer_value">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_timer_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reset</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Compute time elapsed since time was last stored. If reset=True, then the timer is reset afterward.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="n">time_elapsed</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">curr_time</span>
+
+        <span class="k">if</span> <span class="n">reset</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">set_timer</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">time_elapsed</span></div>
+
+
+<div class="viewcode-block" id="Logger.append_time">
+<a class="viewcode-back" href="../../core.html#core.logger.Logger.append_time">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">append_time</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">export</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Store and export timing statistics. </span>
+
+<span class="sd">        :param key: string (describing a part of the algorithm)</span>
+<span class="sd">        :param value: time spent in a part of the algorithm.</span>
+<span class="sd">        :param export: If True, export timings to a csv file.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">round_decimals</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">around</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">decimals</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">round_decimals</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">times</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;(!) Logger warning: key &quot;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s1">&quot; already exists in timing dictionary&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">times</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+
+        <span class="k">if</span> <span class="n">export</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">export_times</span><span class="p">()</span>
+
+        <span class="k">return</span></div>
+
+
+<div class="viewcode-block" id="Logger.append_Lipschitz">
+<a class="viewcode-back" href="../../core.html#core.logger.Logger.append_Lipschitz">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">append_Lipschitz</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">Policy_state</span><span class="p">,</span> <span class="n">V_state</span><span class="p">,</span> <span class="n">iteration</span><span class="p">,</span> <span class="n">silent</span><span class="p">,</span> <span class="n">export</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Calculate and export Lipschitz constants of the policy and certificate networks. </span>
+
+<span class="sd">        :param Policy_state: Policy neural network.</span>
+<span class="sd">        :param V_state: Certificate neural network.</span>
+<span class="sd">        :param iteration: Number of the CEGIS iteration.</span>
+<span class="sd">        :param silent: If False, Lipschitz constants are also printed to stdout. </span>
+<span class="sd">        :param export: If True, export Lipschitz constants to a csv file. </span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="n">t</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+        <span class="n">lips_pi</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">lips_V</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># Compute all Lipschitz constants</span>
+        <span class="k">for</span> <span class="n">weighted</span> <span class="ow">in</span> <span class="p">[</span><span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">]:</span>
+            <span class="k">for</span> <span class="n">CPLip</span> <span class="ow">in</span> <span class="p">[</span><span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">]:</span>
+                <span class="n">key1</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;pi-lip_w=</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">weighted</span><span class="p">)</span><span class="si">}</span><span class="s1">_CPLip=</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">CPLip</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span>
+                <span class="n">key2</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;pi-weights_w=</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">weighted</span><span class="p">)</span><span class="si">}</span><span class="s1">_CPLip=</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">CPLip</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span>
+                <span class="n">lips_pi</span><span class="p">[</span><span class="n">key1</span><span class="p">],</span> <span class="n">lips_pi</span><span class="p">[</span><span class="n">key2</span><span class="p">]</span> <span class="o">=</span> <span class="n">lipschitz_coeff</span><span class="p">(</span><span class="n">Policy_state</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="n">weighted</span><span class="p">,</span> <span class="n">CPLip</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+        <span class="c1"># Convert to DataFrame</span>
+        <span class="n">pi_DF</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">([</span><span class="n">lips_pi</span><span class="p">],</span> <span class="n">index</span><span class="o">=</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">iteration</span><span class="p">)])</span>
+        <span class="n">pi_DF</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;iter&#39;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">silent</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">Policy Lipschitz constants:&#39;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">pi_DF</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">weighted</span> <span class="ow">in</span> <span class="p">[</span><span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">]:</span>
+            <span class="k">for</span> <span class="n">CPLip</span> <span class="ow">in</span> <span class="p">[</span><span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">]:</span>
+                <span class="n">key1</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;V-lip_w=</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">weighted</span><span class="p">)</span><span class="si">}</span><span class="s1">_CPLip=</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">CPLip</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span>
+                <span class="n">key2</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;V-weights_w=</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">weighted</span><span class="p">)</span><span class="si">}</span><span class="s1">_CPLip=</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">CPLip</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span>
+                <span class="n">lips_V</span><span class="p">[</span><span class="n">key1</span><span class="p">],</span> <span class="n">lips_V</span><span class="p">[</span><span class="n">key2</span><span class="p">]</span> <span class="o">=</span> <span class="n">lipschitz_coeff</span><span class="p">(</span><span class="n">V_state</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="n">weighted</span><span class="p">,</span> <span class="n">CPLip</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+        <span class="c1"># Convert to DataFrame</span>
+        <span class="n">V_DF</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">([</span><span class="n">lips_V</span><span class="p">],</span> <span class="n">index</span><span class="o">=</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">iteration</span><span class="p">)])</span>
+        <span class="n">V_DF</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;iter&#39;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">silent</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">Certificate Lipschitz constants:&#39;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">V_DF</span><span class="p">)</span>
+
+        <span class="c1"># Append to main DataFrame</span>
+        <span class="n">add_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">pi_DF</span><span class="p">,</span> <span class="n">V_DF</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Lipschitz_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">Lipschitz_df</span><span class="p">,</span> <span class="n">add_df</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="n">export</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">export_Lipschitz</span><span class="p">()</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Time to compute and export Lipschitz constants: </span><span class="si">{</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">t</span><span class="si">:</span><span class="s1">.4f</span><span class="si">}</span><span class="s1"> sec.&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span></div>
+
+
+<div class="viewcode-block" id="Logger.export_times">
+<a class="viewcode-back" href="../../core.html#core.logger.Logger.export_times">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">export_times</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39; Export times to csv &#39;&#39;&#39;</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">times_series</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">times</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;time [s]&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">times_series</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">times_path</span><span class="p">)</span>
+
+        <span class="k">return</span></div>
+
+
+<div class="viewcode-block" id="Logger.export_Lipschitz">
+<a class="viewcode-back" href="../../core.html#core.logger.Logger.export_Lipschitz">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">export_Lipschitz</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39; Export Lipschitz constants to csv &#39;&#39;&#39;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">Lipschitz_df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Lipschitz_path</span><span class="p">)</span>
+
+        <span class="k">return</span></div>
+
+
+<div class="viewcode-block" id="Logger.add_info_from_dict">
+<a class="viewcode-back" href="../../core.html#core.logger.Logger.add_info_from_dict">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_info_from_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">export</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39; Add info from a dictionary &#39;&#39;&#39;</span>
+
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="nb">dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_info</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">export</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">export</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">export_info</span><span class="p">()</span>
+
+        <span class="k">return</span></div>
+
+
+<div class="viewcode-block" id="Logger.add_info">
+<a class="viewcode-back" href="../../core.html#core.logger.Logger.add_info">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">export</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39; Add single element to info dictionary &#39;&#39;&#39;</span>
+
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">str</span> <span class="ow">and</span> <span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">bool</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">round_decimals</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">around</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">decimals</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">round_decimals</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;(!) Logger warning: key &quot;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s1">&quot; already exists in info dictionary&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+
+        <span class="k">if</span> <span class="n">export</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">export_info</span><span class="p">()</span>
+
+        <span class="k">return</span></div>
+
+
+<div class="viewcode-block" id="Logger.export_info">
+<a class="viewcode-back" href="../../core.html#core.logger.Logger.export_info">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">export_info</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39; Export info to csv &#39;&#39;&#39;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">times_series</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;info&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">times_series</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">info_path</span><span class="p">)</span>
+
+        <span class="k">return</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Thom Badings, Wietze Koops, Sebastian Junges, Nils Jansen.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

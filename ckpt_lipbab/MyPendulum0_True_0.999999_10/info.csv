@@ -1,0 +1,17 @@
+,info
+start_date,2024-12-30_18-11-44
+model,MyPendulum
+layout,0
+seed,10
+ckpt,
+algorithm,PPO_JAX
+probability_bound,0.999999
+local_refinement,True
+weighted_Lipschitz,True
+cplip,True
+split_lip,True
+improved_softplus_lip,False
+status,success
+total_CEGIS_time,108.82078
+verify_samples,19600
+verify_samples_naive,0

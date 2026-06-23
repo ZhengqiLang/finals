@@ -1,0 +1,17 @@
+,info
+start_date,2024-12-30_13-03-23
+model,CollisionAvoidance
+layout,0
+seed,9
+ckpt,
+algorithm,PPO_JAX
+probability_bound,0.8
+local_refinement,True
+weighted_Lipschitz,True
+cplip,True
+split_lip,True
+improved_softplus_lip,False
+status,success
+total_CEGIS_time,67.789195
+verify_samples,40000
+verify_samples_naive,0

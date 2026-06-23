@@ -1,0 +1,1100 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>core.verifier &mdash; logRASM v1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=5cb08e4e"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            logRASM
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html">Policy Verification in Stochastic Dynamical Systems Using Logarithmic Neural Certificates</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html#what-does-this-code-do">1. What does this code do?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html#run-from-a-docker-container-preferred">2. Run from a Docker container (preferred)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html#installing-from-source">3. Installing from source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html#running-for-a-single-benchmark-smoke-test">4. Running for a single benchmark (smoke test)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html#reproducing-results-from-the-paper">5. Reproducing results from the paper</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html#training-policies-with-stable-baselines">6. Training policies with Stable-Baselines</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html#overview-of-input-arguments">7. Overview of input arguments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html#rebuilding-the-docker-container">8. Rebuilding the Docker container</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">Code documentation</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">logRASM</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">core.verifier</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for core.verifier</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">partial</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">jax</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">jax.numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">jnp</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">jax</span><span class="w"> </span><span class="kn">import</span> <span class="n">jit</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.linalg</span><span class="w"> </span><span class="kn">import</span> <span class="n">block_diag</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tqdm</span><span class="w"> </span><span class="kn">import</span> <span class="n">tqdm</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">core.buffer</span><span class="w"> </span><span class="kn">import</span> <span class="n">define_grid</span><span class="p">,</span> <span class="n">define_grid_jax</span><span class="p">,</span> <span class="n">mesh2cell_width</span><span class="p">,</span> <span class="n">cell_width2mesh</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">core.jax_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">lipschitz_coeff</span><span class="p">,</span> <span class="n">create_batches</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">core.plot</span><span class="w"> </span><span class="kn">import</span> <span class="n">plot_dataset</span>
+
+<span class="c1"># Fix OOM; https://github.com/google/jax/discussions/6332#discussioncomment-1279991</span>
+<span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;XLA_PYTHON_CLIENT_MEM_FRACTION&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;0.7&quot;</span>
+<span class="c1"># Fix CUDNN non-determinism; https://github.com/google/jax/issues/4823#issuecomment-952835771</span>
+<span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;TF_XLA_FLAGS&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;--xla_gpu_autotune_level=2 --xla_gpu_deterministic_reductions&quot;</span>
+<span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;TF_CUDNN DETERMINISTIC&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;1&quot;</span>
+
+
+<div class="viewcode-block" id="grid_multiply_shift">
+<a class="viewcode-back" href="../../core.html#core.verifier.grid_multiply_shift">[docs]</a>
+<span class="nd">@jax</span><span class="o">.</span><span class="n">jit</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">grid_multiply_shift</span><span class="p">(</span><span class="n">grid</span><span class="p">,</span> <span class="n">lb</span><span class="p">,</span> <span class="n">ub</span><span class="p">,</span> <span class="n">num</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Split a cell into num cells per dimension by shifting and scaling an existing partitioned grid. </span>
+
+<span class="sd">    :param grid: Grid partitioning cell into num cells in each dimension. </span>
+<span class="sd">    :param lb: Lower bound of the cell.</span>
+<span class="sd">    :param ub: Upper bound of the cell.</span>
+<span class="sd">    :param num: Number of cells into which the cell should be split. </span>
+<span class="sd">    :return: Shifted and scaled grid. </span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="n">multiply_factor</span> <span class="o">=</span> <span class="p">(</span><span class="n">ub</span> <span class="o">-</span> <span class="n">lb</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
+    <span class="n">cell_width</span> <span class="o">=</span> <span class="p">(</span><span class="n">ub</span> <span class="o">-</span> <span class="n">lb</span><span class="p">)</span> <span class="o">/</span> <span class="n">num</span>
+    <span class="n">mean</span> <span class="o">=</span> <span class="p">(</span><span class="n">lb</span> <span class="o">+</span> <span class="n">ub</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
+
+    <span class="n">grid_shift</span> <span class="o">=</span> <span class="n">grid</span> <span class="o">*</span> <span class="n">multiply_factor</span> <span class="o">+</span> <span class="n">mean</span>
+
+    <span class="n">cell_width_column</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">grid_shift</span><span class="p">),</span> <span class="mi">1</span><span class="p">),</span> <span class="n">fill_value</span><span class="o">=</span><span class="n">cell_width</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">grid_plus</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span><span class="n">grid_shift</span><span class="p">,</span> <span class="n">cell_width_column</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">grid_plus</span></div>
+
+
+
+<div class="viewcode-block" id="batched_forward_pass">
+<a class="viewcode-back" href="../../core.html#core.verifier.batched_forward_pass">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">batched_forward_pass</span><span class="p">(</span><span class="n">apply_fn</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">samples</span><span class="p">,</span> <span class="n">out_dim</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Do a forward pass for the given network, split into batches of given size (can be needed to avoid OOM errors).</span>
+
+<span class="sd">    :param apply_fn: Forward pass function of network.</span>
+<span class="sd">    :param params: Parameters of network.</span>
+<span class="sd">    :param samples: Samples to feed through the network.</span>
+<span class="sd">    :param out_dim: Output dimension.</span>
+<span class="sd">    :param batch_size: Batch size (integer).</span>
+<span class="sd">    :return: output of the forward pass.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">batch_size</span><span class="p">:</span>
+        <span class="c1"># If the number of samples is below the maximum batch size, then just do one pass</span>
+        <span class="k">return</span> <span class="n">jit</span><span class="p">(</span><span class="n">apply_fn</span><span class="p">)(</span><span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">stop_gradient</span><span class="p">(</span><span class="n">params</span><span class="p">),</span> <span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">stop_gradient</span><span class="p">(</span><span class="n">samples</span><span class="p">))</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># Otherwise, split into batches</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">samples</span><span class="p">),</span> <span class="n">out_dim</span><span class="p">))</span>
+        <span class="n">num_batches</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span> <span class="o">/</span> <span class="n">batch_size</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+        <span class="n">starts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">num_batches</span><span class="p">)</span> <span class="o">*</span> <span class="n">batch_size</span>
+        <span class="n">ends</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">starts</span> <span class="o">+</span> <span class="n">batch_size</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">samples</span><span class="p">))</span>
+
+        <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">starts</span><span class="p">,</span> <span class="n">ends</span><span class="p">):</span>
+            <span class="n">output</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">jit</span><span class="p">(</span><span class="n">apply_fn</span><span class="p">)(</span><span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">stop_gradient</span><span class="p">(</span><span class="n">params</span><span class="p">),</span> <span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">stop_gradient</span><span class="p">(</span><span class="n">samples</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">j</span><span class="p">]))</span>
+
+        <span class="k">return</span> <span class="n">output</span></div>
+
+
+
+<div class="viewcode-block" id="batched_forward_pass_ibp">
+<a class="viewcode-back" href="../../core.html#core.verifier.batched_forward_pass_ibp">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">batched_forward_pass_ibp</span><span class="p">(</span><span class="n">apply_fn</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">samples</span><span class="p">,</span> <span class="n">epsilon</span><span class="p">,</span> <span class="n">out_dim</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Do a forward pass for the given network, split into batches of given size (can be needed to avoid OOM errors).</span>
+<span class="sd">    This version of the function uses IBP. Also flattens the output automatically.</span>
+
+<span class="sd">    :param apply_fn: Forward pass function of network</span>
+<span class="sd">    :param params: Parameters of network</span>
+<span class="sd">    :param samples: Samples to feed through the network</span>
+<span class="sd">    :param epsilon: Epsilon by which state regions are enlarged</span>
+<span class="sd">    :param out_dim: Output dimension</span>
+<span class="sd">    :param batch_size: Batch size (integer)</span>
+<span class="sd">    :return: output (lower bound and upper bound)</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">batch_size</span><span class="p">:</span>
+        <span class="c1"># If the number of samples is below the maximum batch size, then just do one pass</span>
+        <span class="n">lb</span><span class="p">,</span> <span class="n">ub</span> <span class="o">=</span> <span class="n">apply_fn</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">stop_gradient</span><span class="p">(</span><span class="n">params</span><span class="p">),</span> <span class="n">samples</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_2d</span><span class="p">(</span><span class="n">epsilon</span><span class="p">)</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">lb</span><span class="o">.</span><span class="n">flatten</span><span class="p">(),</span> <span class="n">ub</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># Otherwise, split into batches</span>
+        <span class="n">output_lb</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">samples</span><span class="p">),</span> <span class="n">out_dim</span><span class="p">))</span>
+        <span class="n">output_ub</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">samples</span><span class="p">),</span> <span class="n">out_dim</span><span class="p">))</span>
+        <span class="n">num_batches</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span> <span class="o">/</span> <span class="n">batch_size</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+        <span class="n">starts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">num_batches</span><span class="p">)</span> <span class="o">*</span> <span class="n">batch_size</span>
+        <span class="n">ends</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">starts</span> <span class="o">+</span> <span class="n">batch_size</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">samples</span><span class="p">))</span>
+
+        <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">starts</span><span class="p">,</span> <span class="n">ends</span><span class="p">):</span>
+            <span class="n">output_lb</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">j</span><span class="p">],</span> <span class="n">output_ub</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">apply_fn</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">stop_gradient</span><span class="p">(</span><span class="n">params</span><span class="p">),</span> <span class="n">samples</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">j</span><span class="p">],</span>
+                                                      <span class="n">np</span><span class="o">.</span><span class="n">atleast_2d</span><span class="p">(</span><span class="n">epsilon</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">j</span><span class="p">])</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">output_lb</span><span class="o">.</span><span class="n">flatten</span><span class="p">(),</span> <span class="n">output_ub</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="Verifier">
+<a class="viewcode-back" href="../../core.html#core.verifier.Verifier">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">Verifier</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39; Object for the verifier from the learner-verifier framework &#39;&#39;&#39;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">env</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Initialize the verifier.</span>
+
+<span class="sd">        :param env: Environment.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">env</span> <span class="o">=</span> <span class="n">env</span>
+
+        <span class="c1"># Vectorized function to take step for vector of states, and under vector of noises for each state</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vstep_noise_batch</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">step_noise_batch</span><span class="p">,</span> <span class="n">in_axes</span><span class="o">=</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">out_axes</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">vmap_expectation_Vx_plus</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">expectation_Vx_plus</span><span class="p">,</span>
+                                                 <span class="n">in_axes</span><span class="o">=</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="n">out_axes</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">vmap_grid_multiply_shift</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">grid_multiply_shift</span><span class="p">,</span> <span class="n">in_axes</span><span class="o">=</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="n">out_axes</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+
+        <span class="k">return</span>
+
+<div class="viewcode-block" id="Verifier.partition_noise">
+<a class="viewcode-back" href="../../core.html#core.verifier.Verifier.partition_noise">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">partition_noise</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">env</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Discretize the noise space and compute corresponding probabilities.</span>
+
+<span class="sd">        :param env: Environment.</span>
+<span class="sd">        :param args: Command line arguments.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="c1"># Discretize the noise space</span>
+        <span class="n">cell_width</span> <span class="o">=</span> <span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">noise_space</span><span class="o">.</span><span class="n">high</span> <span class="o">-</span> <span class="n">env</span><span class="o">.</span><span class="n">noise_space</span><span class="o">.</span><span class="n">low</span><span class="p">)</span> <span class="o">/</span> <span class="n">args</span><span class="o">.</span><span class="n">noise_partition_cells</span>
+        <span class="n">num_cells</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">noise_partition_cells</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">cell_width</span><span class="p">)),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">noise_vertices</span> <span class="o">=</span> <span class="n">define_grid</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">noise_space</span><span class="o">.</span><span class="n">low</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">cell_width</span><span class="p">,</span>
+                                          <span class="n">env</span><span class="o">.</span><span class="n">noise_space</span><span class="o">.</span><span class="n">high</span> <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">cell_width</span><span class="p">,</span>
+                                          <span class="n">size</span><span class="o">=</span><span class="n">num_cells</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">noise_lb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">noise_vertices</span> <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">cell_width</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">noise_ub</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">noise_vertices</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">cell_width</span>
+
+        <span class="c1"># Integrated probabilities for the noise distribution</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">noise_int_lb</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">noise_int_ub</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">integrate_noise</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">noise_lb</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">noise_ub</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Verifier.uniform_grid">
+<a class="viewcode-back" href="../../core.html#core.verifier.Verifier.uniform_grid">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">uniform_grid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">env</span><span class="p">,</span> <span class="n">mesh_size</span><span class="p">,</span> <span class="n">Linfty</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Defines a rectangular gridding of the state space, used by the verifier.</span>
+<span class="sd">        </span>
+<span class="sd">        :param env: Environment. Gym environment object.</span>
+<span class="sd">        :param mesh_size: This is the mesh size used to define the grid.</span>
+<span class="sd">        :param Linfty: If true, use Linfty norm for gridding.</span>
+<span class="sd">        :return: Gridding of the state space.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="c1"># Width of each cell in the partition. The grid points are the centers of the cells.</span>
+        <span class="n">verify_mesh_cell_width</span> <span class="o">=</span> <span class="n">mesh2cell_width</span><span class="p">(</span><span class="n">mesh_size</span><span class="p">,</span> <span class="n">env</span><span class="o">.</span><span class="n">state_dim</span><span class="p">,</span> <span class="n">Linfty</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">silent</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- Define uniform grid with mesh size: </span><span class="si">{</span><span class="n">mesh_size</span><span class="si">:</span><span class="s1">.5f</span><span class="si">}</span><span class="s1"> (cell width: </span><span class="si">{</span><span class="n">verify_mesh_cell_width</span><span class="si">:</span><span class="s1">.5f</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Number of cells per dimension of the state space</span>
+        <span class="n">num_per_dimension</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">((</span><span class="n">env</span><span class="o">.</span><span class="n">state_space</span><span class="o">.</span><span class="n">high</span> <span class="o">-</span> <span class="n">env</span><span class="o">.</span><span class="n">state_space</span><span class="o">.</span><span class="n">low</span><span class="p">)</span> <span class="o">/</span> <span class="n">verify_mesh_cell_width</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+
+        <span class="c1"># Create the (rectangular) verification grid</span>
+        <span class="n">grid</span> <span class="o">=</span> <span class="n">define_grid_jax</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">state_space</span><span class="o">.</span><span class="n">low</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">verify_mesh_cell_width</span><span class="p">,</span>
+                               <span class="n">env</span><span class="o">.</span><span class="n">state_space</span><span class="o">.</span><span class="n">high</span> <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">verify_mesh_cell_width</span><span class="p">,</span>
+                               <span class="n">size</span><span class="o">=</span><span class="n">num_per_dimension</span><span class="p">)</span>
+
+        <span class="c1"># Also store the cell width associated with each point</span>
+        <span class="n">cell_width_column</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">grid</span><span class="p">),</span> <span class="mi">1</span><span class="p">),</span> <span class="n">fill_value</span><span class="o">=</span><span class="n">verify_mesh_cell_width</span><span class="p">)</span>
+
+        <span class="c1"># Add the cell width column to the grid</span>
+        <span class="n">grid_plus_width</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span><span class="n">grid</span><span class="p">,</span> <span class="n">cell_width_column</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">grid_plus_width</span></div>
+
+
+<div class="viewcode-block" id="Verifier.local_grid_refinement">
+<a class="viewcode-back" href="../../core.html#core.verifier.Verifier.local_grid_refinement">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">local_grid_refinement</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">env</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">new_mesh_sizes</span><span class="p">,</span> <span class="n">Linfty</span><span class="p">,</span> <span class="n">vmap_threshold</span><span class="o">=</span><span class="mi">1000</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Refine the given array of points in the state space.</span>
+
+<span class="sd">        :param env: Environment.</span>
+<span class="sd">        :param data: Current centers and cell widths of cells in the grid. </span>
+<span class="sd">        :param new_mesh_sizes: New cell widths per current cell.</span>
+<span class="sd">        :param Linfty: If true, use Linfty norm.</span>
+<span class="sd">        :param vmap_threshold: Treshold beyond which a jittable vmap is used for refinement. </span>
+<span class="sd">        :return: Refined grid (as a stacked numpy array).</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">silent</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">- Locally refine mesh size to [</span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">new_mesh_sizes</span><span class="p">)</span><span class="si">:</span><span class="s1">.5f</span><span class="si">}</span><span class="s1">, </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">new_mesh_sizes</span><span class="p">)</span><span class="si">:</span><span class="s1">.5f</span><span class="si">}</span><span class="s1">]&#39;</span><span class="p">)</span>
+
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">new_mesh_sizes</span><span class="p">),</span> \
+            <span class="sa">f</span><span class="s2">&quot;Length of data (</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span><span class="si">}</span><span class="s2">) incompatible with mesh size values (</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">new_mesh_sizes</span><span class="p">)</span><span class="si">}</span><span class="s2">)&quot;</span>
+
+        <span class="n">dim</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">state_dim</span>
+
+        <span class="n">points</span> <span class="o">=</span> <span class="n">data</span><span class="p">[:,</span> <span class="p">:</span><span class="n">dim</span><span class="p">]</span>
+        <span class="n">cell_widths</span> <span class="o">=</span> <span class="n">data</span><span class="p">[:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="c1"># Width of each cell in the partition. The grid points are the centers of the cells.</span>
+        <span class="n">new_cell_widths</span> <span class="o">=</span> <span class="n">mesh2cell_width</span><span class="p">(</span><span class="n">new_mesh_sizes</span><span class="p">,</span> <span class="n">env</span><span class="o">.</span><span class="n">state_dim</span><span class="p">,</span> <span class="n">Linfty</span><span class="p">)</span>
+
+        <span class="c1"># Make sure that the new cell width is at most half of the current (otherwise, we don&#39;t refine at all)</span>
+        <span class="n">new_cell_widths</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">new_cell_widths</span><span class="p">,</span> <span class="n">cell_widths</span> <span class="o">/</span> <span class="mf">1.9</span><span class="p">)</span>
+
+        <span class="c1"># Retrieve bounding box of cell in old grid</span>
+        <span class="n">points_lb</span> <span class="o">=</span> <span class="p">(</span><span class="n">points</span><span class="o">.</span><span class="n">T</span> <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">cell_widths</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+        <span class="n">points_ub</span> <span class="o">=</span> <span class="p">(</span><span class="n">points</span><span class="o">.</span><span class="n">T</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">cell_widths</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+
+        <span class="c1"># Number of cells per dimension of the state space</span>
+        <span class="n">cell_width_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">atleast_2d</span><span class="p">(</span><span class="n">cell_widths</span><span class="p">)</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">cell_widths</span><span class="p">),</span> <span class="n">env</span><span class="o">.</span><span class="n">state_dim</span><span class="p">))</span><span class="o">.</span><span class="n">T</span>
+        <span class="n">num_per_dimension</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">cell_width_array</span> <span class="o">/</span> <span class="n">new_cell_widths</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+
+        <span class="c1"># Determine number of unique rows in matrix</span>
+        <span class="n">unique_num</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">num_per_dimension</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">unique_num</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># Compute average number of copies per counterexample</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">points</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">unique_num</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">vmap_threshold</span><span class="p">:</span>
+            <span class="c1"># Above threshold, use vmap batches version</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">silent</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- Use jax.vmap for refinement&#39;</span><span class="p">)</span>
+
+            <span class="n">t</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+            <span class="n">grid_shift</span> <span class="o">=</span> <span class="p">[[]]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">unique_num</span><span class="p">)</span>
+
+            <span class="c1"># Set box from -1 to 1</span>
+            <span class="n">unit_lb</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">dim</span><span class="p">)</span>
+            <span class="n">unit_ub</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">dim</span><span class="p">)</span>
+
+            <span class="n">cell_widths</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">/</span> <span class="n">unique_num</span>
+
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">num</span><span class="p">,</span> <span class="n">cell_width</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">unique_num</span><span class="p">,</span> <span class="n">cell_widths</span><span class="p">)):</span>
+
+                <span class="c1"># Width of unit cube is 2 by definition</span>
+                <span class="n">grid</span> <span class="o">=</span> <span class="n">define_grid_jax</span><span class="p">(</span><span class="n">unit_lb</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">cell_width</span><span class="p">,</span> <span class="n">unit_ub</span> <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">cell_width</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">num</span><span class="p">)</span>
+
+                <span class="c1"># Determine indexes</span>
+                <span class="n">idxs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">((</span><span class="n">num_per_dimension</span> <span class="o">==</span> <span class="n">num</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">silent</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;--- Split </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">idxs</span><span class="p">)</span><span class="si">:</span><span class="s1">,</span><span class="si">}</span><span class="s1"> cells into: </span><span class="si">{</span><span class="n">num</span><span class="si">}</span><span class="s1"> smaller cells&#39;</span><span class="p">)</span>
+
+                <span class="n">lbs</span> <span class="o">=</span> <span class="n">points_lb</span><span class="p">[</span><span class="n">idxs</span><span class="p">]</span>
+                <span class="n">ubs</span> <span class="o">=</span> <span class="n">points_ub</span><span class="p">[</span><span class="n">idxs</span><span class="p">]</span>
+
+                <span class="n">starts</span><span class="p">,</span> <span class="n">ends</span> <span class="o">=</span> <span class="n">create_batches</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">lbs</span><span class="p">),</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">10_000</span><span class="p">)</span>
+                <span class="n">grid_shift_batch</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">vmap_grid_multiply_shift</span><span class="p">(</span><span class="n">grid</span><span class="p">,</span> <span class="n">lbs</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">j</span><span class="p">],</span> <span class="n">ubs</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">j</span><span class="p">],</span> <span class="n">num</span><span class="p">)</span>
+                                    <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">starts</span><span class="p">,</span> <span class="n">ends</span><span class="p">)]</span>
+                <span class="n">grid_shift_batch</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">(</span><span class="n">grid_shift_batch</span><span class="p">)</span>
+
+                <span class="c1"># Concatenate</span>
+                <span class="n">grid_shift</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">grid_shift_batch</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">grid_shift_batch</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">silent</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;-- Computing grid took:&#39;</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">t</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;--- Number of times vmap function was compiled: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">vmap_grid_multiply_shift</span><span class="o">.</span><span class="n">_cache_size</span><span class="p">()</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">stacked_grid_plus</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">(</span><span class="n">grid_shift</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Below threshold, use naive for loop (because its faster)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">silent</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- Use for-loop for refinement&#39;</span><span class="p">)</span>
+
+            <span class="n">t</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+            <span class="n">grid_plus</span> <span class="o">=</span> <span class="p">[[]]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">new_mesh_sizes</span><span class="p">)</span>
+
+            <span class="c1"># For each given point, compute the subgrid</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">lb</span><span class="p">,</span> <span class="n">ub</span><span class="p">,</span> <span class="n">num</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">points_lb</span><span class="p">,</span> <span class="n">points_ub</span><span class="p">,</span> <span class="n">num_per_dimension</span><span class="p">)):</span>
+                <span class="n">cell_width</span> <span class="o">=</span> <span class="p">(</span><span class="n">ub</span> <span class="o">-</span> <span class="n">lb</span><span class="p">)</span> <span class="o">/</span> <span class="n">num</span>
+
+                <span class="n">grid</span> <span class="o">=</span> <span class="n">define_grid_jax</span><span class="p">(</span><span class="n">lb</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">cell_width</span><span class="p">,</span> <span class="n">ub</span> <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">cell_width</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">num</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;arange&#39;</span><span class="p">)</span>
+
+                <span class="n">cell_width_column</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">grid</span><span class="p">),</span> <span class="mi">1</span><span class="p">),</span> <span class="n">fill_value</span><span class="o">=</span><span class="n">cell_width</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="n">grid_plus</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span><span class="n">grid</span><span class="p">,</span> <span class="n">cell_width_column</span><span class="p">))</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">silent</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;- Computing grid took:&#39;</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">t</span><span class="p">)</span>
+            <span class="n">stacked_grid_plus</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">(</span><span class="n">grid_plus</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">stacked_grid_plus</span></div>
+
+
+<div class="viewcode-block" id="Verifier.get_Lipschitz">
+<a class="viewcode-back" href="../../core.html#core.verifier.Verifier.get_Lipschitz">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_Lipschitz</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Compute the Lipschitz constants of the policy and certificate networks </span>
+<span class="sd">        and the combined Lipschitz constant Kprime. </span>
+
+<span class="sd">        :return:</span>
+<span class="sd">           - lip_policy: Lipschitz constant of the policy network.</span>
+<span class="sd">           - lip_certificate: Lipschitz constant of the certificate network.</span>
+<span class="sd">           - Kprime: combined Lipschitz constant of x \mapsto V(f(x, pi(x), noise)).</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="c1"># Update Lipschitz coefficients</span>
+        <span class="n">lip_policy</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">lipschitz_coeff</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">stop_gradient</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Policy_state</span><span class="o">.</span><span class="n">params</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">weighted</span><span class="p">,</span>
+                                        <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">cplip</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">linfty</span><span class="p">)</span>
+        <span class="n">lip_certificate</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">lipschitz_coeff</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">stop_gradient</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">V_state</span><span class="o">.</span><span class="n">params</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">weighted</span><span class="p">,</span>
+                                             <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">cplip</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">linfty</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">linfty</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">split_lip</span><span class="p">:</span>
+            <span class="n">norm</span> <span class="o">=</span> <span class="s1">&#39;L_infty&#39;</span>
+            <span class="n">Kprime</span> <span class="o">=</span> <span class="n">lip_certificate</span> <span class="o">*</span> <span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">lipschitz_f_linfty_A</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">lipschitz_f_linfty_B</span> <span class="o">*</span> <span class="n">lip_policy</span><span class="p">)</span>  <span class="c1"># + 1)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">split_lip</span><span class="p">:</span>
+            <span class="n">norm</span> <span class="o">=</span> <span class="s1">&#39;L1&#39;</span>
+            <span class="n">Kprime</span> <span class="o">=</span> <span class="n">lip_certificate</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">lipschitz_f_l1_A</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">lipschitz_f_l1_B</span> <span class="o">*</span> <span class="n">lip_policy</span><span class="p">)</span>  <span class="c1"># + 1)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">linfty</span><span class="p">:</span>
+            <span class="n">norm</span> <span class="o">=</span> <span class="s1">&#39;L_infty&#39;</span>
+            <span class="n">Kprime</span> <span class="o">=</span> <span class="n">lip_certificate</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">lipschitz_f_linfty</span> <span class="o">*</span> <span class="p">(</span><span class="n">lip_policy</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>  <span class="c1"># + 1)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">norm</span> <span class="o">=</span> <span class="s1">&#39;L1&#39;</span>
+            <span class="n">Kprime</span> <span class="o">=</span> <span class="n">lip_certificate</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">lipschitz_f_l1</span> <span class="o">*</span> <span class="p">(</span><span class="n">lip_policy</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>  <span class="c1"># + 1)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">silent</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- Overall Lipschitz coefficient K = </span><span class="si">{</span><span class="n">Kprime</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1"> (</span><span class="si">{</span><span class="n">norm</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;-- Lipschitz coefficient of certificate: </span><span class="si">{</span><span class="n">lip_certificate</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1"> (</span><span class="si">{</span><span class="n">norm</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;-- Lipschitz coefficient of policy: </span><span class="si">{</span><span class="n">lip_policy</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1"> (</span><span class="si">{</span><span class="n">norm</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">lip_policy</span><span class="p">,</span> <span class="n">lip_certificate</span><span class="p">,</span> <span class="n">Kprime</span></div>
+
+
+<div class="viewcode-block" id="Verifier.check_and_refine">
+<a class="viewcode-back" href="../../core.html#core.verifier.Verifier.check_and_refine">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">check_and_refine</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">iteration</span><span class="p">,</span> <span class="n">env</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">V_state</span><span class="p">,</span> <span class="n">Policy_state</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Check the three supermartingale conditions, and refine the grid while not. </span>
+
+<span class="sd">        :param iteration: CEGIS iteration index.</span>
+<span class="sd">        :param env: Environment.</span>
+<span class="sd">        :param args: Command line arguments.</span>
+<span class="sd">        :param V_state: Certificate network.</span>
+<span class="sd">        :param Policy_state: Policy network. </span>
+<span class="sd">        :return:</span>
+<span class="sd">           - SAT : True if the check succeeded (possibly after refinements), and hence a supermartingale is learned. False otherwise. </span>
+<span class="sd">           - counterx : Counterexamples to the RASM conditions. </span>
+<span class="sd">           - counterx_weights : Counterexample weights per RASM condition. </span>
+<span class="sd">           - counterx_hard : Boolean array, specifying whether the counterexample is hard. </span>
+<span class="sd">           - total_samples_used : total number of samples used by the local refinement loop.</span>
+<span class="sd">           - total_samples_naive : number of sampled that would have been used by global refinement. </span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="c1"># Store new inputs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">env</span> <span class="o">=</span> <span class="n">env</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="n">args</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">V_state</span> <span class="o">=</span> <span class="n">V_state</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Policy_state</span> <span class="o">=</span> <span class="n">Policy_state</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">silent</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">Set uniform verification grid...&#39;</span><span class="p">)</span>
+        <span class="c1"># Define uniform verify grid, which covers the complete state space with the specified `tau` (mesh size)</span>
+        <span class="n">initial_grid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">uniform_grid</span><span class="p">(</span><span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">,</span> <span class="n">mesh_size</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">mesh_verify_grid_init</span><span class="p">,</span> <span class="n">Linfty</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">linfty</span><span class="p">)</span>
+
+        <span class="n">lip_policy</span><span class="p">,</span> <span class="n">lip_certificate</span><span class="p">,</span> <span class="n">Kprime</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_Lipschitz</span><span class="p">()</span>
+
+        <span class="n">SAT_exp</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">SAT_init</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">SAT_unsafe</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">refine_nr</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">grid_exp</span> <span class="o">=</span> <span class="n">grid_init</span> <span class="o">=</span> <span class="n">grid_unsafe</span> <span class="o">=</span> <span class="n">initial_grid</span>
+
+        <span class="n">total_samples_used</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">grid_exp</span><span class="p">)</span>
+        <span class="n">total_samples_naive</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="c1"># Loop as long as one of the conditions is not satisfied</span>
+        <span class="k">while</span> <span class="p">(</span><span class="ow">not</span> <span class="n">SAT_exp</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">SAT_init</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">SAT_unsafe</span><span class="p">):</span>
+
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">grid_exp</span><span class="p">)</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">grid_init</span><span class="p">)</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">grid_unsafe</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">args</span><span class="o">.</span><span class="n">verify_threshold</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">silent</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">- Skip refinement; too many points to verify on (above </span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">verify_threshold</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">)</span>
+                <span class="k">break</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">SAT_exp</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">silent</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">Check expected decrease conditions...&#39;</span><span class="p">)</span>
+                <span class="n">cx_exp</span><span class="p">,</span> <span class="n">cx_numhard_exp</span><span class="p">,</span> <span class="n">cx_weights_exp</span><span class="p">,</span> <span class="n">cx_hard_exp</span><span class="p">,</span> <span class="n">suggested_mesh_exp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_expected_decrease</span><span class="p">(</span>
+                    <span class="n">iteration</span><span class="p">,</span> <span class="n">grid_exp</span><span class="p">,</span> <span class="n">Kprime</span><span class="p">,</span> <span class="n">lip_certificate</span><span class="p">,</span> <span class="n">compare_with_lip</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cx_exp</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">SAT_exp</span> <span class="o">=</span> <span class="kc">True</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">SAT_init</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">silent</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">Check initial state conditions...&#39;</span><span class="p">)</span>
+                <span class="n">cx_init</span><span class="p">,</span> <span class="n">cx_numhard_init</span><span class="p">,</span> <span class="n">cx_weights_init</span><span class="p">,</span> <span class="n">cx_hard_init</span><span class="p">,</span> <span class="n">suggested_mesh_init</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_initial_states</span><span class="p">(</span>
+                    <span class="n">grid_init</span><span class="p">,</span> <span class="n">Kprime</span><span class="p">,</span> <span class="n">lip_certificate</span><span class="p">,</span> <span class="n">compare_with_lip</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cx_init</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">SAT_init</span> <span class="o">=</span> <span class="kc">True</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">SAT_unsafe</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">silent</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">Check unsafe state conditions...&#39;</span><span class="p">)</span>
+                <span class="n">cx_unsafe</span><span class="p">,</span> <span class="n">cx_numhard_unsafe</span><span class="p">,</span> <span class="n">cx_weights_unsafe</span><span class="p">,</span> <span class="n">cx_hard_unsafe</span><span class="p">,</span> <span class="n">suggested_mesh_unsafe</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_unsafe_state</span><span class="p">(</span>
+                    <span class="n">grid_unsafe</span><span class="p">,</span> <span class="n">Kprime</span><span class="p">,</span> <span class="n">lip_certificate</span><span class="p">,</span> <span class="n">compare_with_lip</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cx_unsafe</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">SAT_unsafe</span> <span class="o">=</span> <span class="kc">True</span>
+
+            <span class="k">if</span> <span class="n">SAT_exp</span> <span class="ow">and</span> <span class="n">SAT_init</span> <span class="ow">and</span> <span class="n">SAT_unsafe</span><span class="p">:</span>
+                <span class="c1"># If all conditions are satisfied, we successfully verified the certificate</span>
+                <span class="k">break</span>
+
+            <span class="k">elif</span> <span class="n">iteration</span> <span class="o">&lt;</span> <span class="n">args</span><span class="o">.</span><span class="n">not_refine_before_iter</span><span class="p">:</span>
+                <span class="c1"># Check if we should not yet refine in the current iteration</span>
+                <span class="k">break</span>
+
+            <span class="k">elif</span> <span class="p">(</span><span class="n">cx_numhard_exp</span> <span class="o">+</span> <span class="n">cx_numhard_init</span> <span class="o">+</span> <span class="n">cx_numhard_unsafe</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="c1"># If there are any hard violations, immediately break the refinement loop</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">silent</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">- Skip refinement; there are &quot;hard&quot; violations that cannot be fixed with refinement&#39;</span><span class="p">)</span>
+                <span class="k">break</span>
+
+            <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">cx_init</span><span class="p">)</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">cx_unsafe</span><span class="p">)</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">cx_exp</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">args</span><span class="o">.</span><span class="n">refine_threshold</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">silent</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">- Skip refinement; too many counterexamples (above </span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">refine_threshold</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">)</span>
+                <span class="k">break</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Perform refinements for the seperate grid (one for each condition)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">SAT_exp</span><span class="p">:</span>
+                    <span class="n">refine</span><span class="p">,</span> <span class="n">grid_exp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">refine</span><span class="p">(</span><span class="n">cx_exp</span><span class="p">,</span> <span class="n">suggested_mesh_exp</span><span class="p">,</span> <span class="n">refine_nr</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">refine</span><span class="p">:</span>
+                        <span class="k">break</span>
+
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">SAT_init</span><span class="p">:</span>
+                    <span class="n">refine</span><span class="p">,</span> <span class="n">grid_init</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">refine</span><span class="p">(</span><span class="n">cx_init</span><span class="p">,</span> <span class="n">suggested_mesh_init</span><span class="p">,</span> <span class="n">refine_nr</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">refine</span><span class="p">:</span>
+                        <span class="k">break</span>
+
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">SAT_unsafe</span><span class="p">:</span>
+                    <span class="n">refine</span><span class="p">,</span> <span class="n">grid_unsafe</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">refine</span><span class="p">(</span><span class="n">cx_unsafe</span><span class="p">,</span> <span class="n">suggested_mesh_unsafe</span><span class="p">,</span> <span class="n">refine_nr</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">refine</span><span class="p">:</span>
+                        <span class="k">break</span>
+
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">- Refinements done&#39;</span><span class="p">)</span>
+
+                <span class="n">refine_nr</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">total_samples_naive</span> <span class="o">=</span> <span class="mi">0</span>
+
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;- Iteration completed&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Check if we satisfied all three conditions</span>
+        <span class="n">SAT</span> <span class="o">=</span> <span class="n">SAT_exp</span> <span class="ow">and</span> <span class="n">SAT_init</span> <span class="ow">and</span> <span class="n">SAT_unsafe</span>
+
+        <span class="c1">### PUT TOGETHER COUNTEREXAMPLES ###</span>
+
+        <span class="n">counterx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">([</span><span class="n">cx_exp</span><span class="p">,</span> <span class="n">cx_init</span><span class="p">,</span> <span class="n">cx_unsafe</span><span class="p">])</span>
+
+        <span class="n">counterx_weights</span> <span class="o">=</span> <span class="n">block_diag</span><span class="p">(</span><span class="o">*</span><span class="p">[</span>
+            <span class="n">cx_weights_exp</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+            <span class="n">cx_weights_init</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+            <span class="n">cx_weights_unsafe</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="p">])</span>
+
+        <span class="n">counterx_hard</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span>
+            <span class="n">cx_hard_exp</span><span class="p">,</span>
+            <span class="n">cx_hard_init</span><span class="p">,</span>
+            <span class="n">cx_hard_unsafe</span>
+        <span class="p">])</span>
+
+        <span class="k">return</span> <span class="n">SAT</span><span class="p">,</span> <span class="n">counterx</span><span class="p">,</span> <span class="n">counterx_weights</span><span class="p">,</span> <span class="n">counterx_hard</span><span class="p">,</span> <span class="n">total_samples_used</span><span class="p">,</span> <span class="n">total_samples_naive</span></div>
+
+
+<div class="viewcode-block" id="Verifier.check_expected_decrease">
+<a class="viewcode-back" href="../../core.html#core.verifier.Verifier.check_expected_decrease">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">check_expected_decrease</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">iteration</span><span class="p">,</span> <span class="n">grid</span><span class="p">,</span> <span class="n">Kprime</span><span class="p">,</span> <span class="n">lip_certificate</span><span class="p">,</span> <span class="n">compare_with_lip</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Check the expected decrease condition. </span>
+
+<span class="sd">        :param iteration: CEGIS iteration index. </span>
+<span class="sd">        :param grid: Verification grid. </span>
+<span class="sd">        :param Kprime: Combined Lipschitz constant. </span>
+<span class="sd">        :param lip_certificate: Lipschitz constant of the certificate network. </span>
+<span class="sd">        :param compare_with_lip: Compare IBP and Lipschitz for the old state. (For the new state, Lipschitz is always used)</span>
+<span class="sd">        :return: </span>
+<span class="sd">           - x_decrease_violations : list of violations of the expected decrease condition.</span>
+<span class="sd">           - len(hardViolations) : number of hard violations.</span>
+<span class="sd">           - violation_weights : list specifying the weight of each violation.</span>
+<span class="sd">           - hard_violation_idxs : boolean array, specifying which violations are hard. </span>
+<span class="sd">           - suggested_mesh_expDecr : Suggested meshes for each violation.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="n">batch_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">forward_pass_batch_size</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- Total number of grid samples: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">grid</span><span class="p">)</span><span class="si">:</span><span class="s1">,</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Check at which points to check expected decrease condition</span>
+        <span class="n">samples</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">target_space</span><span class="o">.</span><span class="n">not_contains</span><span class="p">(</span><span class="n">grid</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">state_dim</span><span class="p">,</span>
+                                                     <span class="n">delta</span><span class="o">=-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">grid</span><span class="p">[:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- Number of samples after excluding target set: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span><span class="si">:</span><span class="s1">,</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+        <span class="c1">### Calculate V_lb(x) over the cell associatd with each point x ###</span>
+        <span class="c1"># First compute the lower bounds on V via IBP for all states outside the target set</span>
+        <span class="n">V_lb</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">batched_forward_pass_ibp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">V_state</span><span class="o">.</span><span class="n">ibp_fn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">V_state</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="n">samples</span><span class="p">[:,</span> <span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">state_dim</span><span class="p">],</span>
+                                           <span class="n">epsilon</span><span class="o">=</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">samples</span><span class="p">[:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">out_dim</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="n">batch_size</span><span class="p">)</span>
+
+        <span class="c1"># We enforce the expected decrease condition only at points where V_lb(x) is below the unsafe state threshold</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">exp_certificate</span><span class="p">:</span>
+            <span class="n">V_lb_below_unsafe_threshold</span> <span class="o">=</span> <span class="p">(</span><span class="n">V_lb</span> <span class="o">&lt;</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">probability_bound</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">V_lb_below_unsafe_threshold</span> <span class="o">=</span> <span class="p">(</span><span class="n">V_lb</span> <span class="o">&lt;</span> <span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">probability_bound</span><span class="p">))</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- Points where V_lb(x) is below the unsafe state threshold: </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">V_lb_below_unsafe_threshold</span><span class="p">)</span><span class="si">:</span><span class="s1">,</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Get the samples where we need to check the expected decrease condition</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">V_lb</span><span class="p">)</span>
+        <span class="n">x_decrease</span> <span class="o">=</span> <span class="n">samples</span><span class="p">[</span><span class="n">V_lb_below_unsafe_threshold</span><span class="p">]</span>
+        <span class="n">Vx_lb_decrease</span> <span class="o">=</span> <span class="n">V_lb</span><span class="p">[</span><span class="n">V_lb_below_unsafe_threshold</span><span class="p">]</span>
+
+        <span class="c1"># Compute mesh size for every cell that is checked</span>
+        <span class="n">mesh_decrease</span> <span class="o">=</span> <span class="n">cell_width2mesh</span><span class="p">(</span><span class="n">x_decrease</span><span class="p">[:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">state_dim</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">linfty</span><span class="p">)</span>
+
+        <span class="c1">### Calculate V(x) at each discrete point x ###</span>
+        <span class="c1"># Now also compute V(x) at each point x precisely</span>
+        <span class="n">done</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">B</span> <span class="o">=</span> <span class="n">batch_size</span>
+        <span class="k">while</span> <span class="ow">not</span> <span class="n">done</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>  <span class="c1"># Decrease the batch size until we don&#39;t run out of memory</span>
+                <span class="n">Vx_center_decrease</span> <span class="o">=</span> <span class="n">batched_forward_pass</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">V_state</span><span class="o">.</span><span class="n">apply_fn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">V_state</span><span class="o">.</span><span class="n">params</span><span class="p">,</span>
+                                                          <span class="n">x_decrease</span><span class="p">[:,</span> <span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">state_dim</span><span class="p">],</span>
+                                                          <span class="n">out_dim</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="n">B</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+                <span class="n">done</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="c1"># Decrease batch size by factor 2</span>
+                <span class="n">B</span> <span class="o">=</span> <span class="n">B</span> <span class="o">/</span> <span class="mi">2</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">silent</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- Warning: single forward pass with </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">x_decrease</span><span class="p">)</span><span class="si">:</span><span class="s1">,</span><span class="si">}</span><span class="s1"> samples failed. Try again with batch size of </span><span class="si">{</span><span class="n">B</span><span class="si">}</span><span class="s1">.&#39;</span><span class="p">)</span>
+
+        <span class="c1">### Calculate E[V_{k+1}] ###</span>
+        <span class="c1"># Determine actions for every point where we need to check the expected decrease condition</span>
+        <span class="n">actions</span> <span class="o">=</span> <span class="n">batched_forward_pass</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Policy_state</span><span class="o">.</span><span class="n">apply_fn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Policy_state</span><span class="o">.</span><span class="n">params</span><span class="p">,</span>
+                                       <span class="n">x_decrease</span><span class="p">[:,</span> <span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">state_dim</span><span class="p">],</span>
+                                       <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">action_space</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">batch_size</span><span class="o">=</span><span class="n">batch_size</span><span class="p">)</span>
+
+        <span class="c1"># Initialize array</span>
+        <span class="n">ExpV_xPlus</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x_decrease</span><span class="p">))</span>
+
+        <span class="c1"># Create batches</span>
+        <span class="n">num_batches</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x_decrease</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">verify_batch_size</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+        <span class="n">starts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">num_batches</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">verify_batch_size</span>
+        <span class="n">ends</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">starts</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">verify_batch_size</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">x_decrease</span><span class="p">))</span>
+
+        <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">)</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">starts</span><span class="p">,</span> <span class="n">ends</span><span class="p">),</span> <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">starts</span><span class="p">),</span> <span class="n">desc</span><span class="o">=</span><span class="s1">&#39;Compute E[V(x_{k+1})]&#39;</span><span class="p">):</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">x_decrease</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">j</span><span class="p">,</span> <span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">state_dim</span><span class="p">]</span>
+            <span class="n">u</span> <span class="o">=</span> <span class="n">actions</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">j</span><span class="p">]</span>
+
+            <span class="n">ExpV_xPlus</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">vmap_expectation_Vx_plus</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">V_state</span><span class="p">,</span> <span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">stop_gradient</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">V_state</span><span class="o">.</span><span class="n">params</span><span class="p">),</span> <span class="n">x</span><span class="p">,</span>
+                                                            <span class="n">u</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">noise_lb</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">noise_ub</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">noise_int_ub</span><span class="p">)</span>
+
+        <span class="c1">### Calculate differences in certificate value ###</span>
+        <span class="n">Vdiff_ibp</span> <span class="o">=</span> <span class="n">ExpV_xPlus</span> <span class="o">-</span> <span class="n">Vx_lb_decrease</span>
+        <span class="n">Vdiff_center</span> <span class="o">=</span> <span class="n">ExpV_xPlus</span> <span class="o">-</span> <span class="n">Vx_center_decrease</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">improved_softplus_lip</span><span class="p">:</span>
+            <span class="n">softplus_lip</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">((</span><span class="mi">1</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">Kprime</span> <span class="o">*</span> <span class="n">mesh_decrease</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">Vx_lb_decrease</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">,</span>
+                                                            <span class="n">Vx_lb_decrease</span><span class="p">,</span> <span class="n">Vx_center_decrease</span><span class="p">))),</span> <span class="mf">1e-4</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">softplus_lip</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">Vdiff_ibp</span><span class="p">))</span>
+
+        <span class="c1"># Print for how many points the softplus Lipschitz coefficient improves upon the default of 1</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">silent</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">improved_softplus_lip</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;- Number of softplus Lipschitz coefficients&#39;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.75</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.05</span><span class="p">,</span> <span class="mf">0.01</span><span class="p">]:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;-- Below value of </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">softplus_lip</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">i</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Negative is violation</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">exp_certificate</span><span class="p">:</span>
+            <span class="n">V_ibp</span> <span class="o">=</span> <span class="n">Vdiff_ibp</span> <span class="o">+</span> <span class="n">mesh_decrease</span> <span class="o">*</span> <span class="n">Kprime</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">V_ibp</span> <span class="o">=</span> <span class="n">Vdiff_ibp</span> <span class="o">+</span> <span class="n">mesh_decrease</span> <span class="o">*</span> <span class="n">Kprime</span> <span class="o">*</span> <span class="n">softplus_lip</span>
+
+        <span class="c1"># Determine indices of violations</span>
+        <span class="n">violation_idxs</span> <span class="o">=</span> <span class="n">V_ibp</span> <span class="o">&gt;=</span> <span class="mi">0</span>
+
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">x_decrease</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">Vx_lb_decrease</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">mesh_decrease</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">Vx_center_decrease</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span>
+            <span class="n">actions</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">ExpV_xPlus</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">Vdiff_ibp</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">Vdiff_center</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">V_ibp</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span>
+            <span class="n">violation_idxs</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">softplus_lip</span><span class="p">)</span>
+
+        <span class="n">x_decrease_violations</span> <span class="o">=</span> <span class="n">x_decrease</span><span class="p">[</span><span class="n">violation_idxs</span><span class="p">]</span>
+        <span class="n">Vx_center_violations</span> <span class="o">=</span> <span class="n">Vx_center_decrease</span><span class="p">[</span><span class="n">violation_idxs</span><span class="p">]</span>
+        <span class="n">Vdiff_center_violations</span> <span class="o">=</span> <span class="n">Vdiff_center</span><span class="p">[</span><span class="n">violation_idxs</span><span class="p">]</span>
+        <span class="n">Vdiff_ibp_violations</span> <span class="o">=</span> <span class="n">Vdiff_ibp</span><span class="p">[</span><span class="n">violation_idxs</span><span class="p">]</span>
+        <span class="n">softplus_lip_violations</span> <span class="o">=</span> <span class="n">softplus_lip</span><span class="p">[</span><span class="n">violation_idxs</span><span class="p">]</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- [IBP] </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">x_decrease_violations</span><span class="p">)</span><span class="si">:</span><span class="s1">,</span><span class="si">}</span><span class="s1"> expected decrease violations (out of </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">x_decrease</span><span class="p">)</span><span class="si">:</span><span class="s1">,</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">silent</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">Vdiff_ibp</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;-- Value of E[V(x_{k+1})] - V_lb(x_k) on lower bounds: &quot;</span>
+                  <span class="sa">f</span><span class="s2">&quot;min=</span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">Vdiff_ibp</span><span class="p">)</span><span class="si">:</span><span class="s2">.8f</span><span class="si">}</span><span class="s2">; mean=</span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">Vdiff_ibp</span><span class="p">)</span><span class="si">:</span><span class="s2">.8f</span><span class="si">}</span><span class="s2">; max=</span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">Vdiff_ibp</span><span class="p">)</span><span class="si">:</span><span class="s2">.8f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1">### Check which violations are also hard violations ###</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">exp_certificate</span><span class="p">:</span>
+            <span class="n">C</span> <span class="o">=</span> <span class="n">Vx_center_violations</span> <span class="o">&lt;</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">probability_bound</span><span class="p">)</span>
+            <span class="n">hard_violation_idxs</span> <span class="o">=</span> <span class="p">(</span><span class="n">Vdiff_center_violations</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="o">*</span> <span class="n">C</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">C</span> <span class="o">=</span> <span class="n">Vx_center_violations</span> <span class="o">&lt;</span> <span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">probability_bound</span><span class="p">)</span>
+            <span class="n">hard_violation_idxs</span> <span class="o">=</span> <span class="p">(</span><span class="n">Vdiff_center_violations</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">mesh_refine_min</span> <span class="o">*</span> <span class="p">(</span>
+                    <span class="n">Kprime</span> <span class="o">*</span> <span class="n">softplus_lip_violations</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="o">*</span> <span class="n">C</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">- Check hard expected decrease violations at </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">C</span><span class="p">)</span><span class="si">:</span><span class="s1">,</span><span class="si">}</span><span class="s1"> points (out of </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">Vx_center_violations</span><span class="p">)</span><span class="si">:</span><span class="s1">,</span><span class="si">}</span><span class="s1"> violations)&#39;</span><span class="p">)</span>
+
+        <span class="n">hardViolations</span> <span class="o">=</span> <span class="n">Vdiff_center_violations</span><span class="p">[</span><span class="n">hard_violation_idxs</span><span class="p">]</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">hardViolations</span><span class="p">)</span><span class="si">:</span><span class="s1">,</span><span class="si">}</span><span class="s1"> hard expected decrease violations (out of </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">x_decrease_violations</span><span class="p">)</span><span class="si">:</span><span class="s1">,</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">silent</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">Vdiff_center_violations</span><span class="p">[</span><span class="n">C</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;-- Value of E[V(x_{k+1})] - V(x_k) at each center x_k: &quot;</span>
+                  <span class="sa">f</span><span class="s2">&quot;min=</span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">Vdiff_center_violations</span><span class="p">[</span><span class="n">C</span><span class="p">])</span><span class="si">:</span><span class="s2">.8f</span><span class="si">}</span><span class="s2">; mean=</span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">Vdiff_center_violations</span><span class="p">[</span><span class="n">C</span><span class="p">])</span><span class="si">:</span><span class="s2">.8f</span><span class="si">}</span><span class="s2">; max=</span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">Vdiff_center_violations</span><span class="p">[</span><span class="n">C</span><span class="p">])</span><span class="si">:</span><span class="s2">.8f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="kc">False</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">hardViolations</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">50</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">=========================&#39;</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Hard violation at points:&#39;</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">x_decrease_violations</span><span class="p">[</span><span class="n">hard_violation_idxs</span><span class="p">])</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;E[V(x_{k+1})] - V(x_k) at these points:&#39;</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">hardViolations</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;=========================&#39;</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Check which of these hard violations would still be a violation when looking over two steps...&#39;</span><span class="p">)</span>
+
+                <span class="n">Q</span> <span class="o">=</span> <span class="mi">2</span>
+                <span class="n">xi</span> <span class="o">=</span> <span class="n">x_decrease_violations</span><span class="p">[</span><span class="n">hard_violation_idxs</span><span class="p">][:,</span> <span class="mi">0</span><span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">state_dim</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">Q</span><span class="p">):</span>
+                    <span class="n">ui</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Policy_state</span><span class="o">.</span><span class="n">apply_fn</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Policy_state</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="n">xi</span><span class="p">)</span>
+                    <span class="n">xi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">vstep_base</span><span class="p">(</span><span class="n">xi</span><span class="p">,</span> <span class="n">ui</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">xi</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">noise_dim</span><span class="p">)))</span>
+
+                <span class="n">Vxi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">V_state</span><span class="o">.</span><span class="n">apply_fn</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">V_state</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="n">xi</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+                <span class="n">Vx1</span> <span class="o">=</span> <span class="n">Vx_center_violations</span><span class="p">[</span><span class="n">hard_violation_idxs</span><span class="p">]</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+                <span class="k">assert</span> <span class="n">Vxi</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">Vx1</span><span class="o">.</span><span class="n">shape</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;V[x_{k+2}] - V[x_</span><span class="si">{k}</span><span class="s1">]:&#39;</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">Vxi</span> <span class="o">-</span> <span class="n">Vx1</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Number of hard violations left: </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">Vxi</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">Vx1</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;=========================</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Computed the suggested mesh for the expected decrease condition</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">exp_certificate</span><span class="p">:</span>
+            <span class="n">suggested_mesh_expDecr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="mf">1e-6</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span>
+                <span class="o">-</span> <span class="n">Vdiff_ibp_violations</span> <span class="o">/</span> <span class="n">Kprime</span><span class="p">,</span> <span class="mf">0.8</span> <span class="o">*</span> <span class="o">-</span><span class="n">Vdiff_center_violations</span> <span class="o">/</span> <span class="n">Kprime</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">suggested_mesh_expDecr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.9</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span>
+                <span class="o">-</span><span class="n">Vdiff_center_violations</span> <span class="o">/</span> <span class="p">(</span><span class="n">Kprime</span> <span class="o">*</span> <span class="n">softplus_lip_violations</span> <span class="o">+</span> <span class="n">lip_certificate</span><span class="p">),</span>
+                <span class="o">-</span><span class="n">Vdiff_ibp_violations</span> <span class="o">/</span> <span class="p">(</span><span class="n">Kprime</span> <span class="o">*</span> <span class="n">softplus_lip_violations</span><span class="p">)))</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">silent</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">x_decrease_violations</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- Smallest suggested mesh based on exp. decrease violations: </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">suggested_mesh_expDecr</span><span class="p">)</span><span class="si">:</span><span class="s1">.8f</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Set violation weights</span>
+        <span class="n">violation_weights</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">Vdiff_center_violations</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">mesh_loss</span> <span class="o">*</span> <span class="n">Kprime</span><span class="p">)</span>
+        <span class="n">violation_weights</span><span class="p">[</span><span class="n">hard_violation_idxs</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">hard_violation_multiplier</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">plot_intermediate</span><span class="p">:</span>
+            <span class="n">filename</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;hard_expected_decrease_counterexamples_iteration=</span><span class="si">{</span><span class="n">iteration</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="n">plot_dataset</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="p">,</span> <span class="n">additional_data</span><span class="o">=</span><span class="n">x_decrease</span><span class="p">[</span><span class="n">violation_idxs</span><span class="p">][</span><span class="n">hard_violation_idxs</span><span class="p">][:,</span> <span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">],</span>
+                         <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">output_folder</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="n">filename</span><span class="p">,</span> <span class="n">title</span><span class="o">=~</span><span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">presentation_plots</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">compare_with_lip</span><span class="p">:</span>
+            <span class="n">Vdiff_lip</span> <span class="o">=</span> <span class="n">ExpV_xPlus</span> <span class="o">-</span> <span class="p">(</span><span class="n">Vx_center_decrease</span> <span class="o">-</span> <span class="n">lip_certificate</span> <span class="o">*</span> <span class="n">mesh_decrease</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="n">Vdiff_ibp</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">Vdiff_lip</span><span class="o">.</span><span class="n">shape</span>
+            <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">softplus_lip</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">Vdiff_ibp</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">Vdiff_lip</span><span class="p">)</span>
+            <span class="n">V_lip</span> <span class="o">=</span> <span class="n">Vdiff_lip</span> <span class="o">+</span> <span class="n">mesh_decrease</span> <span class="o">*</span> <span class="n">Kprime</span> <span class="o">*</span> <span class="n">softplus_lip</span>
+            <span class="n">x_decrease_vio_LIP</span> <span class="o">=</span> <span class="n">x_decrease</span><span class="p">[</span><span class="n">V_lip</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">]</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">- [LIP] </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">x_decrease_vio_LIP</span><span class="p">)</span><span class="si">:</span><span class="s1">,</span><span class="si">}</span><span class="s1"> exp. decr. violations (out of </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">x_decrease</span><span class="p">)</span><span class="si">:</span><span class="s1">,</span><span class="si">}</span><span class="s1"> vertices)&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">V_lip</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;-- Degree of violation over all points: min=</span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">V_lip</span><span class="p">)</span><span class="si">:</span><span class="s2">.8f</span><span class="si">}</span><span class="s2">; &quot;</span>
+                      <span class="sa">f</span><span class="s2">&quot;mean=</span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">V_lip</span><span class="p">)</span><span class="si">:</span><span class="s2">.8f</span><span class="si">}</span><span class="s2">; max=</span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">V_lip</span><span class="p">)</span><span class="si">:</span><span class="s2">.8f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">x_decrease_violations</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">hardViolations</span><span class="p">),</span> <span class="n">violation_weights</span><span class="p">,</span> <span class="n">hard_violation_idxs</span><span class="p">,</span> <span class="n">suggested_mesh_expDecr</span></div>
+
+
+<div class="viewcode-block" id="Verifier.check_initial_states">
+<a class="viewcode-back" href="../../core.html#core.verifier.Verifier.check_initial_states">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">check_initial_states</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">grid</span><span class="p">,</span> <span class="n">Kprime</span><span class="p">,</span> <span class="n">lip_certificate</span><span class="p">,</span> <span class="n">compare_with_lip</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Check the initial state condition. </span>
+
+<span class="sd">        :param grid: Verification grid. </span>
+<span class="sd">        :param Kprime: Combined Lipschitz constant.</span>
+<span class="sd">        :param lip_certificate: Lipschitz constant of the certificate network. </span>
+<span class="sd">        :param compare_with_lip: Compare IBP and Lipschitz.</span>
+<span class="sd">        :return:</span>
+<span class="sd">           - x_init_vio_IBP : list of violations of the initial condition.</span>
+<span class="sd">           - x_init_vioNumHard : number of hard violations.</span>
+<span class="sd">           - weights_init : list specifying the weight of each violation.</span>
+<span class="sd">           - V_init &gt; 0 : boolean array, specifying which violations are hard. </span>
+<span class="sd">           - suggested_mesh_init : Suggested meshes for each violation.</span>
+<span class="sd">           - np.max(V_init_ub) if len(V_init_ub) &gt; 0 else 0 : Maximal value among the (remaining) cells in the unsafe region. </span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="n">batch_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">forward_pass_batch_size</span>
+
+        <span class="c1"># Determine at which points to check initial state conditions</span>
+        <span class="n">samples</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">init_space</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">grid</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">state_dim</span><span class="p">,</span>
+                                               <span class="n">delta</span><span class="o">=</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">grid</span><span class="p">[:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>  <span class="c1"># Enlarge initial set by halfwidth of the cell</span>
+
+        <span class="c1"># Condition check on initial states (i.e., check if V(x) &lt;= 1 for all x in X_init)</span>
+        <span class="n">done</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">B</span> <span class="o">=</span> <span class="n">batch_size</span>
+        <span class="k">while</span> <span class="ow">not</span> <span class="n">done</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>  <span class="c1"># Decrease the batch size until we don&#39;t run out of memory</span>
+                <span class="n">_</span><span class="p">,</span> <span class="n">V_init_ub</span> <span class="o">=</span> <span class="n">batched_forward_pass_ibp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">V_state</span><span class="o">.</span><span class="n">ibp_fn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">V_state</span><span class="o">.</span><span class="n">params</span><span class="p">,</span>
+                                                        <span class="n">samples</span><span class="p">[:,</span> <span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">state_dim</span><span class="p">],</span>
+                                                        <span class="mf">0.5</span> <span class="o">*</span> <span class="n">samples</span><span class="p">[:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+                                                        <span class="n">out_dim</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="n">B</span><span class="p">)</span>
+                <span class="n">done</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="c1"># Decrease batch size by factor 2</span>
+                <span class="n">B</span> <span class="o">=</span> <span class="n">B</span> <span class="o">/</span> <span class="mi">2</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">silent</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- Warning: single forward pass with </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">check_init</span><span class="p">)</span><span class="si">:</span><span class="s1">,</span><span class="si">}</span><span class="s1"> samples failed. Try again with batch size of </span><span class="si">{</span><span class="n">B</span><span class="si">}</span><span class="s1">.&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Set counterexamples (for initial states)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">exp_certificate</span><span class="p">:</span>
+            <span class="n">V</span> <span class="o">=</span> <span class="n">V_init_ub</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">V</span> <span class="o">=</span> <span class="p">(</span><span class="n">V_init_ub</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">x_init_vio_IBP</span> <span class="o">=</span> <span class="n">samples</span><span class="p">[</span><span class="n">V</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- [IBP] </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">x_init_vio_IBP</span><span class="p">)</span><span class="si">:</span><span class="s1">,</span><span class="si">}</span><span class="s1"> initial state violations (out of </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span><span class="si">:</span><span class="s1">,</span><span class="si">}</span><span class="s1"> vertices)&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">silent</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">V</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;-- Stats. of [V_init_ub-1] (&gt;0 is violation): min=</span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">V</span><span class="p">)</span><span class="si">:</span><span class="s2">.8f</span><span class="si">}</span><span class="s2">; &quot;</span>
+                  <span class="sa">f</span><span class="s2">&quot;mean=</span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">V</span><span class="p">)</span><span class="si">:</span><span class="s2">.8f</span><span class="si">}</span><span class="s2">; max=</span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">V</span><span class="p">)</span><span class="si">:</span><span class="s2">.8f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Compute suggested mesh</span>
+        <span class="n">suggested_mesh_init</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">max_refine_factor</span> <span class="o">*</span> <span class="n">cell_width2mesh</span><span class="p">(</span><span class="n">x_init_vio_IBP</span><span class="p">[:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+                                                                                <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">state_dim</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">linfty</span><span class="p">)</span>
+
+        <span class="c1"># For the counterexamples, check which are actually &quot;hard&quot; violations (which cannot be fixed with smaller tau)</span>
+        <span class="n">done</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">B</span> <span class="o">=</span> <span class="n">batch_size</span>
+        <span class="k">while</span> <span class="ow">not</span> <span class="n">done</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>  <span class="c1"># Decrease the batch size until we don&#39;t run out of memory</span>
+                <span class="n">V_init</span> <span class="o">=</span> <span class="n">batched_forward_pass</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">V_state</span><span class="o">.</span><span class="n">apply_fn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">V_state</span><span class="o">.</span><span class="n">params</span><span class="p">,</span>
+                                              <span class="n">x_init_vio_IBP</span><span class="p">[:,</span> <span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">state_dim</span><span class="p">],</span>
+                                              <span class="n">out_dim</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="n">B</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+                <span class="n">done</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="c1"># Decrease batch size by factor 2</span>
+                <span class="n">B</span> <span class="o">=</span> <span class="n">B</span> <span class="o">/</span> <span class="mi">2</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">silent</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s1">&#39;- Warning: single forward pass with </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">x_init_vio_IBP</span><span class="p">)</span><span class="si">}</span><span class="s1"> samples failed. Try again with batch size of </span><span class="si">{</span><span class="n">B</span><span class="si">}</span><span class="s1">.&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Only keep the hard counterexamples that are really contained in the initial region (not adjacent to it)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">exp_certificate</span><span class="p">:</span>
+            <span class="n">vioHard</span> <span class="o">=</span> <span class="n">V_init</span> <span class="o">&gt;</span> <span class="mi">0</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">vioHard</span> <span class="o">=</span> <span class="p">(</span><span class="n">V_init</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span>
+        <span class="n">x_init_vioNumHard</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">init_space</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">x_init_vio_IBP</span><span class="p">[</span><span class="n">vioHard</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">state_dim</span><span class="p">,</span> <span class="n">delta</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+
+        <span class="c1"># Set weights: hard violations get a stronger weight</span>
+        <span class="n">weights_init</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">V_init</span><span class="p">))</span>
+        <span class="n">weights_init</span><span class="p">[</span><span class="n">vioHard</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">hard_violation_multiplier</span>
+
+        <span class="n">out_of</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">init_space</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">x_init_vio_IBP</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">state_dim</span><span class="p">,</span> <span class="n">delta</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">silent</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;-- </span><span class="si">{</span><span class="n">x_init_vioNumHard</span><span class="si">:</span><span class="s1">,</span><span class="si">}</span><span class="s1"> hard violations (out of </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">out_of</span><span class="p">)</span><span class="si">:</span><span class="s1">,</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">compare_with_lip</span><span class="p">:</span>
+            <span class="c1"># Compare IBP with method based on Lipschitz coefficient</span>
+            <span class="n">mesh_init</span> <span class="o">=</span> <span class="n">cell_width2mesh</span><span class="p">(</span><span class="n">samples</span><span class="p">[:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">state_dim</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">linfty</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+            <span class="n">Vx_init_center</span> <span class="o">=</span> <span class="n">jit</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">V_state</span><span class="o">.</span><span class="n">apply_fn</span><span class="p">)(</span><span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">stop_gradient</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">V_state</span><span class="o">.</span><span class="n">params</span><span class="p">),</span>
+                                                        <span class="n">samples</span><span class="p">[:,</span> <span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">state_dim</span><span class="p">])</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+
+            <span class="n">x_init_vio_lip</span> <span class="o">=</span> <span class="n">samples</span><span class="p">[</span><span class="n">Vx_init_center</span> <span class="o">+</span> <span class="n">mesh_init</span> <span class="o">*</span> <span class="n">lip_certificate</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">]</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">- [LIP] </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">x_init_vio_lip</span><span class="p">)</span><span class="si">:</span><span class="s1">,</span><span class="si">}</span><span class="s1"> initial state violations (out of </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span><span class="si">:</span><span class="s1">,</span><span class="si">}</span><span class="s1"> vertices)&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">x_init_vio_IBP</span><span class="p">,</span> <span class="n">x_init_vioNumHard</span><span class="p">,</span> <span class="n">weights_init</span><span class="p">,</span> <span class="n">V_init</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="n">suggested_mesh_init</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">V_init_ub</span><span class="p">)</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">V_init_ub</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span></div>
+
+
+<div class="viewcode-block" id="Verifier.check_unsafe_state">
+<a class="viewcode-back" href="../../core.html#core.verifier.Verifier.check_unsafe_state">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">check_unsafe_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">grid</span><span class="p">,</span> <span class="n">Kprime</span><span class="p">,</span> <span class="n">lip_certificate</span><span class="p">,</span> <span class="n">compare_with_lip</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Check the unsafe state condition. </span>
+
+<span class="sd">        :param grid: Verification grid. </span>
+<span class="sd">        :param Kprime: Combined Lipschitz constant.</span>
+<span class="sd">        :param lip_certificate:  Lipschitz constant of the certificate network. </span>
+<span class="sd">        :param compare_with_lip: Compare IBP and Lipschitz.</span>
+<span class="sd">        :return:</span>
+<span class="sd">           - x_unsafe_vio_IBP : list of violations of the unsafe condition.</span>
+<span class="sd">           - x_unsafe_vioNumHard : number of hard violations.</span>
+<span class="sd">           - weights_unsafe : list specifying the weight of each violation.</span>
+<span class="sd">           - V_unsafe &lt; 0 : boolean array, specifying which violations are hard. </span>
+<span class="sd">           - suggested_mesh_unsafe : Suggested meshes for each violation.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="n">batch_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">forward_pass_batch_size</span>
+
+        <span class="c1"># Determine at which points to check unsafe state conditions</span>
+        <span class="n">samples</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">unsafe_space</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">grid</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">state_dim</span><span class="p">,</span>
+                                                 <span class="n">delta</span><span class="o">=</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">grid</span><span class="p">[:,</span>
+                                                             <span class="o">-</span><span class="mi">1</span><span class="p">])</span>  <span class="c1"># Enlarge initial set by halfwidth of the cell</span>
+
+        <span class="c1"># Condition check on unsafe states (i.e., check if V(x) &gt;= 1/(1-p) for all x in X_unsafe)</span>
+        <span class="n">done</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">B</span> <span class="o">=</span> <span class="n">batch_size</span>
+        <span class="k">while</span> <span class="ow">not</span> <span class="n">done</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>  <span class="c1"># Decrease the batch size until we don&#39;t run out of memory</span>
+                <span class="n">V_unsafe_lb</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">batched_forward_pass_ibp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">V_state</span><span class="o">.</span><span class="n">ibp_fn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">V_state</span><span class="o">.</span><span class="n">params</span><span class="p">,</span>
+                                                          <span class="n">samples</span><span class="p">[:,</span> <span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">state_dim</span><span class="p">],</span>
+                                                          <span class="mf">0.5</span> <span class="o">*</span> <span class="n">samples</span><span class="p">[:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+                                                          <span class="n">out_dim</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="n">B</span><span class="p">)</span>
+                <span class="n">done</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="c1"># Decrease batch size by factor 2</span>
+                <span class="n">B</span> <span class="o">=</span> <span class="n">B</span> <span class="o">/</span> <span class="mi">2</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">silent</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- Warning: single forward pass with </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span><span class="si">:</span><span class="s1">,</span><span class="si">}</span><span class="s1"> samples failed. Try again with batch size of </span><span class="si">{</span><span class="n">B</span><span class="si">}</span><span class="s1">.&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Set counterexamples (for unsafe states)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">exp_certificate</span><span class="p">:</span>
+            <span class="n">V</span> <span class="o">=</span> <span class="n">V_unsafe_lb</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">probability_bound</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">V</span> <span class="o">=</span> <span class="p">(</span><span class="n">V_unsafe_lb</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">probability_bound</span><span class="p">))</span>
+        <span class="n">x_unsafe_vio_IBP</span> <span class="o">=</span> <span class="n">samples</span><span class="p">[</span><span class="n">V</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">]</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- [IBP] </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">x_unsafe_vio_IBP</span><span class="p">)</span><span class="si">:</span><span class="s1">,</span><span class="si">}</span><span class="s1"> unsafe state violations (out of </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span><span class="si">:</span><span class="s1">,</span><span class="si">}</span><span class="s1"> vertices)&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">silent</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">V</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;-- Stats. of [V_unsafe_lb-1/(1-p)] (&lt;0 is violation): min=</span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">V</span><span class="p">)</span><span class="si">:</span><span class="s2">.8f</span><span class="si">}</span><span class="s2">; &quot;</span>
+                  <span class="sa">f</span><span class="s2">&quot;mean=</span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">V</span><span class="p">)</span><span class="si">:</span><span class="s2">.8f</span><span class="si">}</span><span class="s2">; max=</span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">V</span><span class="p">)</span><span class="si">:</span><span class="s2">.8f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Compute suggested mesh</span>
+        <span class="n">suggested_mesh_unsafe</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">max_refine_factor</span> <span class="o">*</span> <span class="n">cell_width2mesh</span><span class="p">(</span><span class="n">x_unsafe_vio_IBP</span><span class="p">[:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+                                                                                  <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">state_dim</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">linfty</span><span class="p">)</span>
+
+        <span class="c1"># For the counterexamples, check which are actually &quot;hard&quot; violations (which cannot be fixed with smaller tau)</span>
+        <span class="n">done</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">B</span> <span class="o">=</span> <span class="n">batch_size</span>
+        <span class="k">while</span> <span class="ow">not</span> <span class="n">done</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>  <span class="c1"># Decrease the batch size until we don&#39;t run out of memory</span>
+                <span class="n">V_unsafe</span> <span class="o">=</span> <span class="n">batched_forward_pass</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">V_state</span><span class="o">.</span><span class="n">apply_fn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">V_state</span><span class="o">.</span><span class="n">params</span><span class="p">,</span>
+                                                <span class="n">x_unsafe_vio_IBP</span><span class="p">[:,</span> <span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">state_dim</span><span class="p">],</span>
+                                                <span class="n">out_dim</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="n">B</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+                <span class="n">done</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="c1"># Decrease batch size by factor 2</span>
+                <span class="n">B</span> <span class="o">=</span> <span class="n">B</span> <span class="o">/</span> <span class="mi">2</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">silent</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- Warning: single forward pass with </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">x_unsafe_vio_IBP</span><span class="p">)</span><span class="si">:</span><span class="s1">,</span><span class="si">}</span><span class="s1"> samples failed. Try again with batch size of </span><span class="si">{</span><span class="n">B</span><span class="si">}</span><span class="s1">.&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Only keep the hard counterexamples that are really contained in the initial region (not adjacent to it)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">exp_certificate</span><span class="p">:</span>
+            <span class="n">vioHard</span> <span class="o">=</span> <span class="p">(</span><span class="n">V_unsafe</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">probability_bound</span><span class="p">))</span> <span class="o">&lt;</span> <span class="mi">0</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">vioHard</span> <span class="o">=</span> <span class="p">(</span><span class="n">V_unsafe</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">probability_bound</span><span class="p">))</span> <span class="o">&lt;</span> <span class="mi">0</span>
+        <span class="n">x_unsafe_vioNumHard</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">unsafe_space</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">x_unsafe_vio_IBP</span><span class="p">[</span><span class="n">vioHard</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">state_dim</span><span class="p">,</span> <span class="n">delta</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+
+        <span class="c1"># Set weights: hard violations get a stronger weight</span>
+        <span class="n">weights_unsafe</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">V_unsafe</span><span class="p">))</span>
+        <span class="n">weights_unsafe</span><span class="p">[</span><span class="n">vioHard</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">hard_violation_multiplier</span>
+
+        <span class="n">out_of</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">unsafe_space</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">x_unsafe_vio_IBP</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">state_dim</span><span class="p">,</span> <span class="n">delta</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">silent</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;-- </span><span class="si">{</span><span class="n">x_unsafe_vioNumHard</span><span class="si">:</span><span class="s1">,</span><span class="si">}</span><span class="s1"> hard violations (out of </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">out_of</span><span class="p">)</span><span class="si">:</span><span class="s1">,</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">compare_with_lip</span><span class="p">:</span>
+            <span class="c1"># Compare IBP with method based on Lipschitz coefficient</span>
+            <span class="n">mesh_unsafe</span> <span class="o">=</span> <span class="n">cell_width2mesh</span><span class="p">(</span><span class="n">samples</span><span class="p">[:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">state_dim</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">linfty</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+            <span class="n">Vx_init_unsafe</span> <span class="o">=</span> <span class="n">jit</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">V_state</span><span class="o">.</span><span class="n">apply_fn</span><span class="p">)(</span><span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">stop_gradient</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">V_state</span><span class="o">.</span><span class="n">params</span><span class="p">),</span>
+                                                        <span class="n">samples</span><span class="p">[:,</span> <span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">state_dim</span><span class="p">])</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+
+            <span class="n">x_unsafe_vio_lip</span> <span class="o">=</span> <span class="n">samples</span><span class="p">[</span><span class="n">Vx_init_unsafe</span> <span class="o">-</span> <span class="n">mesh_unsafe</span> <span class="o">*</span> <span class="n">lip_certificate</span>
+                                       <span class="o">&lt;</span> <span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">probability_bound</span><span class="p">)]</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- [LIP] </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">x_unsafe_vio_lip</span><span class="p">)</span><span class="si">:</span><span class="s1">,</span><span class="si">}</span><span class="s1"> unsafe state violations (out of </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span><span class="si">:</span><span class="s1">,</span><span class="si">}</span><span class="s1"> vertices)&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">x_unsafe_vio_IBP</span><span class="p">,</span> <span class="n">x_unsafe_vioNumHard</span><span class="p">,</span> <span class="n">weights_unsafe</span><span class="p">,</span> <span class="n">V_unsafe</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">,</span> <span class="n">suggested_mesh_unsafe</span></div>
+
+
+<div class="viewcode-block" id="Verifier.expectation_Vx_plus">
+<a class="viewcode-back" href="../../core.html#core.verifier.Verifier.expectation_Vx_plus">[docs]</a>
+    <span class="nd">@partial</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">,</span> <span class="n">static_argnums</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,))</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">expectation_Vx_plus</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">V_state</span><span class="p">,</span> <span class="n">V_params</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">w_lb</span><span class="p">,</span> <span class="n">w_ub</span><span class="p">,</span> <span class="n">prob_ub</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Compute expectation over V(x_{k+1}).</span>
+
+<span class="sd">        :param V_state: Certificate network.</span>
+<span class="sd">        :param V_params: Parameters of the certificate network. </span>
+<span class="sd">        :param x: State.</span>
+<span class="sd">        :param u: Action. </span>
+<span class="sd">        :param w_lb: Noise lower bounds of the noise partition cells. </span>
+<span class="sd">        :param w_ub: Noise upper bounds of the noise partition cells. </span>
+<span class="sd">        :param prob_ub: Probabilities of the noise partition cells. </span>
+<span class="sd">        :return: Upper bound on the expectation of V(x_{k+1}).</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="c1"># Next function makes a step for one (x,u) pair and a whole list of (w_lb, w_ub) pairs</span>
+        <span class="n">state_mean</span><span class="p">,</span> <span class="n">epsilon</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">vstep_noise_set</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">w_lb</span><span class="p">,</span> <span class="n">w_ub</span><span class="p">)</span>
+
+        <span class="c1"># Propagate the box [state_mean ± epsilon] for every pair (w_lb, w_ub) through IBP</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">V_new_ub</span> <span class="o">=</span> <span class="n">V_state</span><span class="o">.</span><span class="n">ibp_fn</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">stop_gradient</span><span class="p">(</span><span class="n">V_params</span><span class="p">),</span> <span class="n">state_mean</span><span class="p">,</span> <span class="n">epsilon</span><span class="p">)</span>
+
+        <span class="c1"># Compute expectation by multiplying each V_new by the respective probability</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">exp_certificate</span><span class="p">:</span>
+            <span class="n">V_expected_ub</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                <span class="n">jnp</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">V_new_ub</span><span class="o">.</span><span class="n">flatten</span><span class="p">(),</span> <span class="o">-</span><span class="n">jnp</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">probability_bound</span><span class="p">))),</span> <span class="n">prob_ub</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">V_expected_ub</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">V_new_ub</span><span class="o">.</span><span class="n">flatten</span><span class="p">(),</span> <span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">probability_bound</span><span class="p">)),</span> <span class="n">prob_ub</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">V_expected_ub</span></div>
+
+
+<div class="viewcode-block" id="Verifier.step_noise_batch">
+<a class="viewcode-back" href="../../core.html#core.verifier.Verifier.step_noise_batch">[docs]</a>
+    <span class="nd">@partial</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">,</span> <span class="n">static_argnums</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,))</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">step_noise_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">V_state</span><span class="p">,</span> <span class="n">V_params</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">noise_key</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Approximate V(x_{k+1})-V(x_k) by taking the average over a set of noise values.</span>
+
+<span class="sd">        :param V_state: Certificate network.</span>
+<span class="sd">        :param V_params: Parameters of the certificate network. </span>
+<span class="sd">        :param x: State.</span>
+<span class="sd">        :param u: Action. </span>
+<span class="sd">        :param noise_key: random number generator key. </span>
+<span class="sd">        :return: Approximation of V(x_{k+1})-V(x_k).</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="n">state_new</span><span class="p">,</span> <span class="n">noise_key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">vstep_noise_batch</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">noise_key</span><span class="p">,</span> <span class="n">u</span><span class="p">)</span>
+        <span class="n">V_new</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">jit</span><span class="p">(</span><span class="n">V_state</span><span class="o">.</span><span class="n">apply_fn</span><span class="p">)(</span><span class="n">V_params</span><span class="p">,</span> <span class="n">state_new</span><span class="p">))</span>
+        <span class="n">V_old</span> <span class="o">=</span> <span class="n">jit</span><span class="p">(</span><span class="n">V_state</span><span class="o">.</span><span class="n">apply_fn</span><span class="p">)(</span><span class="n">V_state</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">V_new</span> <span class="o">-</span> <span class="n">V_old</span></div>
+
+
+<div class="viewcode-block" id="Verifier.refine">
+<a class="viewcode-back" href="../../core.html#core.verifier.Verifier.refine">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">refine</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cx</span><span class="p">,</span> <span class="n">suggested_mesh</span><span class="p">,</span> <span class="n">refine_nr</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Refine the verification grid (either using local or uniform refinements).</span>
+
+<span class="sd">        :param cx: Counterexamples. </span>
+<span class="sd">        :param suggested_mesh: Suggested mesh (per counterexample).</span>
+<span class="sd">        :param refine_nr: Number of completed refinements. </span>
+<span class="sd">        :return: </span>
+<span class="sd">           - refine: boolean, True if the refinement was executed.</span>
+<span class="sd">           - grid: the refined grid (or None, if refine is False).</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="n">min_suggested_mesh</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">suggested_mesh</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">min_suggested_mesh</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">mesh_refine_min</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">silent</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">- Skip refinement, because lowest suggested mesh (</span><span class="si">{</span><span class="n">min_suggested_mesh</span><span class="si">:</span><span class="s1">.8f</span><span class="si">}</span><span class="s1">) is below minimum tau (</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">mesh_refine_min</span><span class="si">:</span><span class="s1">.8f</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">)</span>
+            <span class="n">refine</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">refine</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="k">if</span> <span class="n">refine</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">local_refinement</span><span class="p">:</span>
+                <span class="c1"># Clip the suggested mesh at the lowest allowed value</span>
+                <span class="n">min_allowed_mesh</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">mesh_verify_grid_init</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">max_refine_factor</span> <span class="o">**</span> <span class="p">(</span>
+                        <span class="n">refine_nr</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span> <span class="o">*</span> <span class="mf">1.001</span>
+                <span class="n">suggested_mesh</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">min_allowed_mesh</span><span class="p">,</span> <span class="n">suggested_mesh</span><span class="p">)</span>
+
+                <span class="c1"># If local refinement is used, then use a different suggested mesh for each counterexample</span>
+                <span class="n">grid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">local_grid_refinement</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="p">,</span> <span class="n">cx</span><span class="p">,</span> <span class="n">suggested_mesh</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">linfty</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Allowed mesh is given by the max_refine_factor</span>
+                <span class="n">mesh</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">mesh_verify_grid_init</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">max_refine_factor</span> <span class="o">**</span> <span class="p">(</span><span class="n">refine_nr</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+
+                <span class="c1"># If global refinement is used, then use the lowest of all suggested mesh values</span>
+                <span class="n">grid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">uniform_grid</span><span class="p">(</span><span class="n">env</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="p">,</span> <span class="n">mesh_size</span><span class="o">=</span><span class="n">mesh</span><span class="p">,</span> <span class="n">Linfty</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">linfty</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">grid</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">return</span> <span class="n">refine</span><span class="p">,</span> <span class="n">grid</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Thom Badings, Wietze Koops, Sebastian Junges, Nils Jansen.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

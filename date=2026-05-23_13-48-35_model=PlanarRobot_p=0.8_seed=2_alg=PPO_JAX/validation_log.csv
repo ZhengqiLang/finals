@@ -1,0 +1,7 @@
+,validate log
+probability bound,0.8
+init violations,0
+unsafe violations,0
+exp. decr. violations,0
+correct certificate,True
+empirical satisfaction,0.0

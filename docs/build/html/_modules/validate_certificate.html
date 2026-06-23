@@ -1,0 +1,651 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>validate_certificate &mdash; logRASM v1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=5cb08e4e"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            logRASM
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../ReadMe.html">Policy Verification in Stochastic Dynamical Systems Using Logarithmic Neural Certificates</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../ReadMe.html#what-does-this-code-do">1. What does this code do?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../ReadMe.html#run-from-a-docker-container-preferred">2. Run from a Docker container (preferred)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../ReadMe.html#installing-from-source">3. Installing from source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../ReadMe.html#running-for-a-single-benchmark-smoke-test">4. Running for a single benchmark (smoke test)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../ReadMe.html#reproducing-results-from-the-paper">5. Reproducing results from the paper</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../ReadMe.html#training-policies-with-stable-baselines">6. Training policies with Stable-Baselines</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../ReadMe.html#overview-of-input-arguments">7. Overview of input arguments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../ReadMe.html#rebuilding-the-docker-container">8. Rebuilding the Docker container</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">Code documentation</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">logRASM</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Module code</a></li>
+      <li class="breadcrumb-item active">validate_certificate</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for validate_certificate</h1><div class="highlight"><pre>
+<span></span><span class="c1"># To generate figures for in paper, run something like:</span>
+<span class="c1"># python validate_certificate.py --check_folder &#39;../results/Ablation (Jan 2)/main/&#39; --no-validate_conditions --plot_RASM</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+
+<span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;JAX_ENABLE_X64&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;True&quot;</span>
+<span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;JAX_DEFAULT_DTYPE_BITS&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;64&#39;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">jax</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">jax.numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">jnp</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">argparse</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">orbax.checkpoint</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tqdm</span><span class="w"> </span><span class="kn">import</span> <span class="n">tqdm</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">core.jax_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">orbax_parse_activation_fn</span><span class="p">,</span> <span class="n">load_policy_config</span><span class="p">,</span> <span class="n">create_nn_states</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">core.buffer</span><span class="w"> </span><span class="kn">import</span> <span class="n">define_grid_jax</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">core.verifier</span><span class="w"> </span><span class="kn">import</span> <span class="n">batched_forward_pass</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">core.plot</span><span class="w"> </span><span class="kn">import</span> <span class="n">plot_boxes</span><span class="p">,</span> <span class="n">plot_certificate_2D</span><span class="p">,</span> <span class="n">plot_layout</span><span class="p">,</span> <span class="n">plot_heatmap</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">core.commons</span><span class="w"> </span><span class="kn">import</span> <span class="n">Namespace</span>
+
+<span class="c1"># Import all benchmark models</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">models</span>
+
+
+<div class="viewcode-block" id="Simulator">
+<a class="viewcode-back" href="../validate_certificate.html#validate_certificate.Simulator">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">Simulator</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Monte Carlo simulator for the reach-avoid specification.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">env</span><span class="p">,</span> <span class="n">Policy_state</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">init_space</span><span class="p">,</span> <span class="n">xInits</span><span class="o">=</span><span class="mi">10000</span><span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">,</span> <span class="n">subkey</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">env</span> <span class="o">=</span> <span class="n">env</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Policy_state</span> <span class="o">=</span> <span class="n">Policy_state</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stats</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;total_sims&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s1">&#39;satisfied&#39;</span><span class="p">:</span> <span class="mi">0</span>
+        <span class="p">}</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">N_per_set</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">xInits</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">init_space</span><span class="o">.</span><span class="n">sets</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+            <span class="n">M</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">N_per_set</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">init_space</span><span class="o">.</span><span class="n">sets</span><span class="p">)))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">initial_states</span> <span class="o">=</span> <span class="n">init_space</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="n">subkey</span><span class="p">,</span> <span class="n">N</span><span class="o">=</span><span class="n">M</span><span class="p">)</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">initial_states</span> <span class="o">=</span> <span class="n">init_space</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="n">subkey</span><span class="p">,</span> <span class="n">N</span><span class="o">=</span><span class="n">xInits</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Simulator.sample_xInit">
+<a class="viewcode-back" href="../validate_certificate.html#validate_certificate.Simulator.sample_xInit">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">sample_xInit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">initial_states</span><span class="p">))</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_states</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="Simulator.empirical_reachability">
+<a class="viewcode-back" href="../validate_certificate.html#validate_certificate.Simulator.empirical_reachability">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">empirical_reachability</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_traces</span><span class="p">,</span> <span class="n">horizon</span><span class="p">):</span>
+
+        <span class="n">traces</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">actions</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">total_sat</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">num_traces</span><span class="p">)):</span>
+            <span class="n">traces</span><span class="p">[</span><span class="n">n</span><span class="p">],</span> <span class="n">actions</span><span class="p">[</span><span class="n">n</span><span class="p">],</span> <span class="n">sat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">simulate_trace</span><span class="p">(</span><span class="n">horizon</span><span class="p">)</span>
+            <span class="n">total_sat</span> <span class="o">+=</span> <span class="n">sat</span>
+
+        <span class="n">empirical_sat</span> <span class="o">=</span> <span class="n">total_sat</span> <span class="o">/</span> <span class="n">num_traces</span>
+
+        <span class="k">return</span> <span class="n">traces</span><span class="p">,</span> <span class="n">actions</span><span class="p">,</span> <span class="n">empirical_sat</span></div>
+
+
+<div class="viewcode-block" id="Simulator.simulate_trace">
+<a class="viewcode-back" href="../validate_certificate.html#validate_certificate.Simulator.simulate_trace">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">simulate_trace</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">horizon</span><span class="p">):</span>
+
+        <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">horizon</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">state_dim</span><span class="p">))</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">horizon</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">action_space</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+        <span class="n">satisfied</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">done</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="c1"># Reset environment by sampling an initial state</span>
+        <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_xInit</span><span class="p">()</span>
+
+        <span class="c1"># Check if initial state is already unsafe or in target</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_safe</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="n">done</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_goal</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="n">done</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">satisfied</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="n">t</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="ow">not</span> <span class="n">done</span><span class="p">:</span>
+            <span class="n">t</span> <span class="o">+=</span> <span class="mi">1</span>
+
+            <span class="c1"># Get state and action</span>
+            <span class="n">a</span><span class="p">[</span><span class="n">t</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Policy_state</span><span class="o">.</span><span class="n">apply_fn</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Policy_state</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="n">x</span><span class="p">[</span><span class="n">t</span> <span class="o">-</span> <span class="mi">1</span><span class="p">])</span>
+
+            <span class="c1"># Make step in environment</span>
+            <span class="n">x</span><span class="p">[</span><span class="n">t</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">step_noise_key</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="n">t</span> <span class="o">-</span> <span class="mi">1</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">,</span> <span class="n">a</span><span class="p">[</span><span class="n">t</span> <span class="o">-</span> <span class="mi">1</span><span class="p">])</span>
+
+            <span class="c1"># Check if initial state is already unsafe or in target</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_safe</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="n">t</span><span class="p">]):</span>
+                <span class="n">done</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_goal</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="n">t</span><span class="p">]):</span>
+                <span class="n">done</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">satisfied</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">elif</span> <span class="n">t</span> <span class="o">&gt;=</span> <span class="n">horizon</span><span class="p">:</span>
+                <span class="n">done</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="c1"># Trim trace</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">x</span><span class="p">[:</span><span class="n">t</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="n">a</span><span class="p">[:</span><span class="n">t</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">x</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">satisfied</span></div>
+
+
+<div class="viewcode-block" id="Simulator.is_safe">
+<a class="viewcode-back" href="../validate_certificate.html#validate_certificate.Simulator.is_safe">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_safe</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39; Check if given state x is still safe &#39;&#39;&#39;</span>
+        <span class="n">safe</span> <span class="o">=</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_unsafe</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_in_state_space</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">safe</span></div>
+
+
+<div class="viewcode-block" id="Simulator.is_goal">
+<a class="viewcode-back" href="../validate_certificate.html#validate_certificate.Simulator.is_goal">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_goal</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">target_space</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">x</span><span class="p">]),</span> <span class="n">return_indices</span><span class="o">=</span><span class="kc">True</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="Simulator.check_unsafe">
+<a class="viewcode-back" href="../validate_certificate.html#validate_certificate.Simulator.check_unsafe">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">check_unsafe</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">unsafe_space</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">x</span><span class="p">]),</span> <span class="n">return_indices</span><span class="o">=</span><span class="kc">True</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="Simulator.check_in_state_space">
+<a class="viewcode-back" href="../validate_certificate.html#validate_certificate.Simulator.check_in_state_space">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">check_in_state_space</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">state_space</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">x</span><span class="p">]),</span> <span class="n">return_indices</span><span class="o">=</span><span class="kc">True</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="Simulator.plot">
+<a class="viewcode-back" href="../validate_certificate.html#validate_certificate.Simulator.plot">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">traces</span><span class="p">,</span> <span class="n">num_to_plot</span><span class="p">,</span> <span class="n">folder</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
+
+        <span class="n">dim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">plot_dim</span>
+
+        <span class="k">if</span> <span class="n">dim</span> <span class="o">!=</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">()</span>
+
+            <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_to_plot</span><span class="p">):</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">traces</span><span class="p">[</span><span class="n">n</span><span class="p">][:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">traces</span><span class="p">[</span><span class="n">n</span><span class="p">][:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;gray&quot;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">markersize</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+            <span class="c1"># Plot relevant state sets</span>
+            <span class="n">plot_boxes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="p">,</span> <span class="n">ax</span><span class="p">)</span>
+
+            <span class="c1"># Goal x-y limits</span>
+            <span class="n">low</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">state_space</span><span class="o">.</span><span class="n">low</span>
+            <span class="n">high</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">state_space</span><span class="o">.</span><span class="n">high</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">low</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">high</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="n">low</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">high</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Simulated traces (</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="p">,</span> <span class="s1">&#39;variable_names&#39;</span><span class="p">):</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">variable_names</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">variable_names</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="n">projection</span><span class="o">=</span><span class="s1">&#39;3d&#39;</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_to_plot</span><span class="p">):</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">traces</span><span class="p">[</span><span class="n">n</span><span class="p">][:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">traces</span><span class="p">[</span><span class="n">n</span><span class="p">][:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">traces</span><span class="p">[</span><span class="n">n</span><span class="p">][:,</span> <span class="mi">2</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;gray&quot;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">markersize</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+            <span class="c1"># Goal x-y limits</span>
+            <span class="n">low</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">state_space</span><span class="o">.</span><span class="n">low</span>
+            <span class="n">high</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">state_space</span><span class="o">.</span><span class="n">high</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">low</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">high</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="n">low</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">high</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_zlim</span><span class="p">(</span><span class="n">low</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">high</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Simulated traces (</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="p">,</span> <span class="s1">&#39;variable_names&#39;</span><span class="p">):</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">variable_names</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">variable_names</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">set_zlabel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">variable_names</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+
+        <span class="c1"># Export figure</span>
+        <span class="k">if</span> <span class="n">folder</span> <span class="ow">and</span> <span class="n">filename</span><span class="p">:</span>
+            <span class="c1"># Save figure</span>
+            <span class="k">for</span> <span class="n">form</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;pdf&#39;</span><span class="p">,</span> <span class="s1">&#39;png&#39;</span><span class="p">]:</span>
+                <span class="n">filepath</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+                <span class="n">filepath</span> <span class="o">=</span> <span class="n">filepath</span><span class="o">.</span><span class="n">parent</span> <span class="o">/</span> <span class="p">(</span><span class="n">filepath</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="n">form</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="n">form</span><span class="p">,</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s1">&#39;tight&#39;</span><span class="p">,</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="loss_exp_decrease">
+<a class="viewcode-back" href="../validate_certificate.html#validate_certificate.loss_exp_decrease">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">loss_exp_decrease</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">exp_certificate</span><span class="p">,</span> <span class="n">V_state</span><span class="p">,</span> <span class="n">V_params</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">noise_key</span><span class="p">,</span> <span class="n">probability_bound</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Compute expected decrease condition</span>
+
+<span class="sd">    :param env: Environment.</span>
+<span class="sd">    :param exp_certificate: True if logRASM is used.</span>
+<span class="sd">    :param V_state: Certificate neural network.</span>
+<span class="sd">    :param V_params: Certificate neural network parameters.</span>
+<span class="sd">    :param x: State.</span>
+<span class="sd">    :param u: Control input.</span>
+<span class="sd">    :param noise_key: Key of the random number generator.</span>
+<span class="sd">    :param probability_bound: The probability bound of the specification that we aim to certify.</span>
+<span class="sd">    :return: Expected decrease</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="c1"># For each given noise_key, compute the successor state for the pair (x,u)</span>
+    <span class="n">state_new</span><span class="p">,</span> <span class="n">noise_key</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">vstep_noise_batch</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">noise_key</span><span class="p">,</span> <span class="n">u</span><span class="p">)</span>
+
+    <span class="c1"># Function apply_fn does a forward pass in the certificate network for all successor states in state_new,</span>
+    <span class="c1"># which approximates the value of the certificate for the successor state (using different noise values).</span>
+    <span class="c1"># Then, the loss term is zero if the expected decrease in certificate value is at least tau*K.</span>
+    <span class="k">if</span> <span class="n">exp_certificate</span><span class="p">:</span>
+        <span class="n">V_expected</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">V_state</span><span class="o">.</span><span class="n">apply_fn</span><span class="p">(</span><span class="n">V_params</span><span class="p">,</span> <span class="n">state_new</span><span class="p">),</span> <span class="o">-</span><span class="n">jnp</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">probability_bound</span><span class="p">)))))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">V_expected</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">V_state</span><span class="o">.</span><span class="n">apply_fn</span><span class="p">(</span><span class="n">V_params</span><span class="p">,</span> <span class="n">state_new</span><span class="p">),</span> <span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">probability_bound</span><span class="p">)))</span>
+
+    <span class="k">return</span> <span class="n">V_expected</span></div>
+
+
+
+<span class="n">loss_exp_decrease_vmap</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">loss_exp_decrease</span><span class="p">,</span> <span class="n">in_axes</span><span class="o">=</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="n">out_axes</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="validate_RASM">
+<a class="viewcode-back" href="../validate_certificate.html#validate_certificate.validate_RASM">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">validate_RASM</span><span class="p">(</span><span class="n">checkpoint_path</span><span class="p">,</span> <span class="n">cell_width</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">10000</span><span class="p">,</span> <span class="n">forward_pass_batch_size</span><span class="o">=</span><span class="mi">1_000_000</span><span class="p">,</span>
+                  <span class="n">expected_decrease_samples</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">num_traces</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">plot_RASM</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">plot_latex_text</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">validate_conditions</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Validate the given (log)RASM by discretizing the state space and computing the expected decrease condition empirically.</span>
+
+<span class="sd">    :param checkpoint_path: Path to load checkpoint from.</span>
+<span class="sd">    :param cell_width: Discretization cell width.</span>
+<span class="sd">    :param batch_size: Batch size to use for computing the expected decrease condition.</span>
+<span class="sd">    :param forward_pass_batch_size: Batch size to use for forward passes.</span>
+<span class="sd">    :param expected_decrease_samples: Number of samples to use for computing the expected decrease condition in each grid point.</span>
+<span class="sd">    :param seed: Random seed.</span>
+<span class="sd">    :param num_traces: Number of Monte Carlo simulations to run.</span>
+<span class="sd">    :param plot_RASM: If True, plot the (log)RASM.</span>
+<span class="sd">    :param plot_latex_text: If True, use LaTeX for plotting.</span>
+<span class="sd">    :param validate_conditions: If True, validate the certificate conditions empirically.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- Validate checkpoint in folder &quot;</span><span class="si">{</span><span class="n">checkpoint_path</span><span class="si">}</span><span class="s1">&quot;&#39;</span><span class="p">)</span>
+
+    <span class="n">test</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">3.5096874987</span><span class="p">,</span> <span class="mf">6.30985987</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">jnp</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- Validation uses JAX data type: </span><span class="si">{</span><span class="n">test</span><span class="o">.</span><span class="n">dtype</span><span class="si">}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+
+    <span class="n">key</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">PRNGKey</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+
+    <span class="n">LOGG</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="n">Policy_config</span> <span class="o">=</span> <span class="n">load_policy_config</span><span class="p">(</span><span class="n">checkpoint_path</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="s1">&#39;Policy_config&#39;</span><span class="p">)</span>
+    <span class="n">V_config</span> <span class="o">=</span> <span class="n">load_policy_config</span><span class="p">(</span><span class="n">checkpoint_path</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="s1">&#39;V_config&#39;</span><span class="p">)</span>
+    <span class="n">general_config</span> <span class="o">=</span> <span class="n">load_policy_config</span><span class="p">(</span><span class="n">checkpoint_path</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="s1">&#39;general_config&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Create gym environment (jax/flax version)</span>
+    <span class="n">envfun</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">get_model_fun</span><span class="p">(</span><span class="n">Policy_config</span><span class="p">[</span><span class="s1">&#39;env_name&#39;</span><span class="p">])</span>
+
+    <span class="c1"># Define empty namespace and store layout attribute</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">Namespace</span>
+    <span class="n">args</span><span class="o">.</span><span class="n">layout</span> <span class="o">=</span> <span class="n">general_config</span><span class="p">[</span><span class="s1">&#39;layout&#39;</span><span class="p">]</span>
+
+    <span class="c1"># Build environment</span>
+    <span class="n">env</span> <span class="o">=</span> <span class="n">envfun</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+
+    <span class="n">V_neurons_withOut</span> <span class="o">=</span> <span class="n">V_config</span><span class="p">[</span><span class="s1">&#39;neurons_per_layer&#39;</span><span class="p">]</span>
+    <span class="n">V_act_fn_withOut_txt</span> <span class="o">=</span> <span class="n">V_config</span><span class="p">[</span><span class="s1">&#39;activation_fn&#39;</span><span class="p">]</span>
+    <span class="n">V_act_fn_withOut</span> <span class="o">=</span> <span class="n">orbax_parse_activation_fn</span><span class="p">(</span><span class="n">V_act_fn_withOut_txt</span><span class="p">)</span>
+
+    <span class="n">pi_neurons_withOut</span> <span class="o">=</span> <span class="n">Policy_config</span><span class="p">[</span><span class="s1">&#39;neurons_per_layer&#39;</span><span class="p">]</span>
+    <span class="n">pi_act_funcs_txt</span> <span class="o">=</span> <span class="n">Policy_config</span><span class="p">[</span><span class="s1">&#39;activation_fn&#39;</span><span class="p">]</span>
+    <span class="n">pi_act_funcs_jax</span> <span class="o">=</span> <span class="n">orbax_parse_activation_fn</span><span class="p">(</span><span class="n">pi_act_funcs_txt</span><span class="p">)</span>
+
+    <span class="c1"># Load policy configuration</span>
+    <span class="n">V_state</span><span class="p">,</span> <span class="n">Policy_state</span><span class="p">,</span> <span class="n">Policy_config</span><span class="p">,</span> <span class="n">Policy_neurons_withOut</span> <span class="o">=</span> <span class="n">create_nn_states</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">Policy_config</span><span class="p">,</span>
+                                                                                    <span class="n">V_neurons_withOut</span><span class="p">,</span>
+                                                                                    <span class="n">V_act_fn_withOut</span><span class="p">,</span>
+                                                                                    <span class="n">pi_neurons_withOut</span><span class="p">)</span>
+
+    <span class="c1"># Restore state of policy and certificate network</span>
+    <span class="n">orbax_checkpointer</span> <span class="o">=</span> <span class="n">orbax</span><span class="o">.</span><span class="n">checkpoint</span><span class="o">.</span><span class="n">Checkpointer</span><span class="p">(</span><span class="n">orbax</span><span class="o">.</span><span class="n">checkpoint</span><span class="o">.</span><span class="n">PyTreeCheckpointHandler</span><span class="p">())</span>
+    <span class="n">target</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;general_config&#39;</span><span class="p">:</span> <span class="n">general_config</span><span class="p">,</span> <span class="s1">&#39;V_state&#39;</span><span class="p">:</span> <span class="n">V_state</span><span class="p">,</span> <span class="s1">&#39;Policy_state&#39;</span><span class="p">:</span> <span class="n">Policy_state</span><span class="p">,</span> <span class="s1">&#39;V_config&#39;</span><span class="p">:</span> <span class="n">V_config</span><span class="p">,</span>
+              <span class="s1">&#39;Policy_config&#39;</span><span class="p">:</span> <span class="n">Policy_config</span><span class="p">}</span>
+
+    <span class="n">Policy_state</span> <span class="o">=</span> <span class="n">orbax_checkpointer</span><span class="o">.</span><span class="n">restore</span><span class="p">(</span><span class="n">checkpoint_path</span><span class="p">,</span> <span class="n">item</span><span class="o">=</span><span class="n">target</span><span class="p">)[</span><span class="s1">&#39;Policy_state&#39;</span><span class="p">]</span>
+    <span class="n">V_state</span> <span class="o">=</span> <span class="n">orbax_checkpointer</span><span class="o">.</span><span class="n">restore</span><span class="p">(</span><span class="n">checkpoint_path</span><span class="p">,</span> <span class="n">item</span><span class="o">=</span><span class="n">target</span><span class="p">)[</span><span class="s1">&#39;V_state&#39;</span><span class="p">]</span>
+
+    <span class="c1"># %%</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Start validation...&#39;</span><span class="p">)</span>
+    <span class="n">start_datetime</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">_%H-%M-%S&quot;</span><span class="p">)</span>
+    <span class="n">folder</span> <span class="o">=</span> <span class="n">checkpoint_path</span><span class="o">.</span><span class="n">parents</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">plot_RASM</span><span class="p">:</span>
+        <span class="n">figure_folder</span> <span class="o">=</span> <span class="s1">&#39;output/&#39;</span>
+
+        <span class="n">args_file</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="s1">&#39;args.csv&#39;</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">args</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">args_file</span><span class="p">,</span> <span class="n">index_col</span><span class="o">=</span><span class="mi">0</span><span class="p">)[</span><span class="s1">&#39;arguments&#39;</span><span class="p">]</span>
+            <span class="n">weighted</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="s1">&#39;weighted&#39;</span><span class="p">]</span>
+            <span class="n">exp</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="s1">&#39;exp_certificate&#39;</span><span class="p">]</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="n">weighted</span> <span class="o">=</span> <span class="s1">&#39;unknown&#39;</span>
+            <span class="n">exp</span> <span class="o">=</span> <span class="s1">&#39;unknown&#39;</span>
+
+        <span class="c1"># Create plot of reach-avoid specification</span>
+        <span class="n">title</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">general_config</span><span class="p">[</span><span class="s1">&#39;env_name&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="n">filename</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;layout_</span><span class="si">{</span><span class="n">general_config</span><span class="p">[</span><span class="s1">&#39;env_name&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">general_config</span><span class="p">[</span><span class="s1">&#39;layout&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">_p=</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">general_config</span><span class="p">[</span><span class="s1">&#39;probability_bound&#39;</span><span class="p">])</span><span class="si">}</span><span class="s2">_weighted=</span><span class="si">{</span><span class="n">weighted</span><span class="si">}</span><span class="s2">_exp=</span><span class="si">{</span><span class="n">exp</span><span class="si">}</span><span class="s2">_seed=</span><span class="si">{</span><span class="n">general_config</span><span class="p">[</span><span class="s1">&#39;seed&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="n">plot_layout</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">folder</span><span class="o">=</span><span class="n">figure_folder</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="n">filename</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span> <span class="n">latex</span><span class="o">=</span><span class="n">plot_latex_text</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">28</span><span class="p">)</span>
+
+        <span class="c1"># Create plot of RASM</span>
+        <span class="n">title</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">general_config</span><span class="p">[</span><span class="s1">&#39;env_name&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">general_config</span><span class="p">[</span><span class="s1">&#39;probability_bound&#39;</span><span class="p">]</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">100</span><span class="si">}</span><span class="s2">\%)&quot;</span>
+        <span class="n">filename</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;RASM_</span><span class="si">{</span><span class="n">general_config</span><span class="p">[</span><span class="s1">&#39;env_name&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">general_config</span><span class="p">[</span><span class="s1">&#39;layout&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">_p=</span><span class="si">{</span><span class="n">general_config</span><span class="p">[</span><span class="s1">&#39;probability_bound&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">_weighted=</span><span class="si">{</span><span class="n">weighted</span><span class="si">}</span><span class="s2">_exp=</span><span class="si">{</span><span class="n">exp</span><span class="si">}</span><span class="s2">_seed=</span><span class="si">{</span><span class="n">general_config</span><span class="p">[</span><span class="s1">&#39;seed&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+        <span class="n">plot_certificate_2D</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">V_state</span><span class="p">,</span> <span class="n">folder</span><span class="o">=</span><span class="n">figure_folder</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="n">filename</span><span class="p">,</span> <span class="n">logscale</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span> <span class="n">latex</span><span class="o">=</span><span class="n">plot_latex_text</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">28</span><span class="p">,</span> <span class="n">contour</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">validate_conditions</span><span class="p">:</span>
+
+        <span class="c1"># Check conditions for many sampled points</span>
+        <span class="n">num_per_dimension</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">((</span><span class="n">env</span><span class="o">.</span><span class="n">state_space</span><span class="o">.</span><span class="n">high</span> <span class="o">-</span> <span class="n">env</span><span class="o">.</span><span class="n">state_space</span><span class="o">.</span><span class="n">low</span><span class="p">)</span> <span class="o">/</span> <span class="n">cell_width</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+        <span class="n">grid</span> <span class="o">=</span> <span class="n">define_grid_jax</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">state_space</span><span class="o">.</span><span class="n">low</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">cell_width</span><span class="p">,</span> <span class="n">env</span><span class="o">.</span><span class="n">state_space</span><span class="o">.</span><span class="n">high</span> <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">cell_width</span><span class="p">,</span>
+                               <span class="n">size</span><span class="o">=</span><span class="n">num_per_dimension</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- Validation grid points defined (</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">grid</span><span class="p">)</span><span class="si">}</span><span class="s1"> points)&#39;</span><span class="p">)</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;- Validate certificate for probability bound p=</span><span class="si">{</span><span class="n">general_config</span><span class="p">[</span><span class="s1">&#39;probability_bound&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">general_config</span><span class="p">[</span><span class="s1">&#39;exp_certificate&#39;</span><span class="p">]:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;-- Assuming that we learned log(V)&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;-- Assuming that we learned V directly&#39;</span><span class="p">)</span>
+        <span class="n">LOGG</span><span class="p">[</span><span class="s1">&#39;probability bound&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">general_config</span><span class="p">[</span><span class="s1">&#39;probability_bound&#39;</span><span class="p">]</span>
+
+        <span class="c1"># Determine at which points to check which condition</span>
+        <span class="n">check_decrease</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">target_space</span><span class="o">.</span><span class="n">not_contains</span><span class="p">(</span><span class="n">grid</span><span class="p">)</span>
+        <span class="n">check_init</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">init_space</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">grid</span><span class="p">)</span>
+        <span class="n">check_unsafe</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">unsafe_space</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">grid</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;- Grid points split between decrease/init/unsafe states&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Check initial state conditions</span>
+        <span class="n">V_init</span> <span class="o">=</span> <span class="n">batched_forward_pass</span><span class="p">(</span><span class="n">V_state</span><span class="o">.</span><span class="n">apply_fn</span><span class="p">,</span> <span class="n">V_state</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="n">check_init</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">forward_pass_batch_size</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">general_config</span><span class="p">[</span><span class="s1">&#39;exp_certificate&#39;</span><span class="p">]:</span>
+            <span class="n">V_init_violations</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">V_init</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">V_init_violations</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">V_init</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- </span><span class="si">{</span><span class="n">V_init_violations</span><span class="si">}</span><span class="s1"> initial state violations&#39;</span><span class="p">)</span>
+        <span class="n">LOGG</span><span class="p">[</span><span class="s1">&#39;init violations&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">V_init_violations</span>
+
+        <span class="c1"># Check unsafe state conditions</span>
+        <span class="n">V_unsafe</span> <span class="o">=</span> <span class="n">batched_forward_pass</span><span class="p">(</span><span class="n">V_state</span><span class="o">.</span><span class="n">apply_fn</span><span class="p">,</span> <span class="n">V_state</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="n">check_unsafe</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span>
+                                        <span class="n">forward_pass_batch_size</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">general_config</span><span class="p">[</span><span class="s1">&#39;exp_certificate&#39;</span><span class="p">]:</span>
+            <span class="n">V_unsafe_violations</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">V_unsafe</span> <span class="o">&lt;</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">general_config</span><span class="p">[</span><span class="s1">&#39;probability_bound&#39;</span><span class="p">])))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">V_unsafe_violations</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">V_unsafe</span> <span class="o">&lt;</span> <span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">general_config</span><span class="p">[</span><span class="s1">&#39;probability_bound&#39;</span><span class="p">])))</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- </span><span class="si">{</span><span class="n">V_unsafe_violations</span><span class="si">}</span><span class="s1"> unsafe state violations&#39;</span><span class="p">)</span>
+        <span class="n">LOGG</span><span class="p">[</span><span class="s1">&#39;unsafe violations&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">V_unsafe_violations</span>
+
+        <span class="c1"># Check expected decrease conditions</span>
+        <span class="n">V_expDecr</span> <span class="o">=</span> <span class="n">batched_forward_pass</span><span class="p">(</span><span class="n">V_state</span><span class="o">.</span><span class="n">apply_fn</span><span class="p">,</span> <span class="n">V_state</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="n">check_decrease</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span>
+                                         <span class="n">forward_pass_batch_size</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+        <span class="n">actions</span> <span class="o">=</span> <span class="n">batched_forward_pass</span><span class="p">(</span><span class="n">Policy_state</span><span class="o">.</span><span class="n">apply_fn</span><span class="p">,</span> <span class="n">Policy_state</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="n">check_decrease</span><span class="p">,</span>
+                                       <span class="n">env</span><span class="o">.</span><span class="n">action_space</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">forward_pass_batch_size</span><span class="p">)</span>
+
+        <span class="c1"># Create batches</span>
+        <span class="n">V_expDecrNext</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">check_decrease</span><span class="p">))</span>
+        <span class="n">num_batches</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">check_decrease</span><span class="p">)</span> <span class="o">/</span> <span class="n">batch_size</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+        <span class="n">starts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">num_batches</span><span class="p">)</span> <span class="o">*</span> <span class="n">batch_size</span>
+        <span class="n">ends</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">starts</span> <span class="o">+</span> <span class="n">batch_size</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">check_decrease</span><span class="p">))</span>
+        <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">)</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">starts</span><span class="p">,</span> <span class="n">ends</span><span class="p">),</span> <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">starts</span><span class="p">),</span> <span class="n">desc</span><span class="o">=</span><span class="s1">&#39;Compute E[V(x_{k+1})]&#39;</span><span class="p">):</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">check_decrease</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">j</span><span class="p">]</span>
+            <span class="n">u</span> <span class="o">=</span> <span class="n">actions</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">j</span><span class="p">]</span>
+
+            <span class="n">key</span><span class="p">,</span> <span class="n">subkey</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+            <span class="n">expDecr_keys</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">subkey</span><span class="p">,</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">expected_decrease_samples</span><span class="p">))</span>
+
+            <span class="n">V_expDecrNext</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">loss_exp_decrease_vmap</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">general_config</span><span class="p">[</span><span class="s1">&#39;exp_certificate&#39;</span><span class="p">],</span> <span class="n">V_state</span><span class="p">,</span> <span class="n">V_state</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span>
+                                                        <span class="n">u</span><span class="p">,</span> <span class="n">expDecr_keys</span><span class="p">,</span> <span class="n">general_config</span><span class="p">[</span><span class="s1">&#39;probability_bound&#39;</span><span class="p">])</span>
+
+        <span class="c1"># Check which points are also below the unsafe state region threshold</span>
+        <span class="k">if</span> <span class="n">general_config</span><span class="p">[</span><span class="s1">&#39;exp_certificate&#39;</span><span class="p">]:</span>
+            <span class="n">below_unsafe_threshold</span> <span class="o">=</span> <span class="p">(</span><span class="n">V_expDecr</span> <span class="o">&lt;</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">general_config</span><span class="p">[</span><span class="s1">&#39;probability_bound&#39;</span><span class="p">]))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">below_unsafe_threshold</span> <span class="o">=</span> <span class="p">(</span><span class="n">V_expDecr</span> <span class="o">&lt;</span> <span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">general_config</span><span class="p">[</span><span class="s1">&#39;probability_bound&#39;</span><span class="p">]))</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;- Points where V(x) is below the unsafe state threshold:&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">below_unsafe_threshold</span><span class="p">))</span>
+
+        <span class="n">V_expDecr_violations</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">V_expDecrNext</span> <span class="o">&gt;</span> <span class="n">V_expDecr</span><span class="p">)</span> <span class="o">*</span> <span class="n">below_unsafe_threshold</span><span class="p">))</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- </span><span class="si">{</span><span class="n">V_expDecr_violations</span><span class="si">}</span><span class="s1"> expected decrease violations&#39;</span><span class="p">)</span>
+        <span class="n">LOGG</span><span class="p">[</span><span class="s1">&#39;exp. decr. violations&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">V_expDecr_violations</span>
+
+        <span class="c1"># Create heatmaps for expected decrease points</span>
+        <span class="k">if</span> <span class="n">actions</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">filename</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;actions_iteration=</span><span class="si">{</span><span class="n">general_config</span><span class="p">[</span><span class="s1">&#39;iteration&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="n">actions_clip</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">actions</span><span class="o">.</span><span class="n">flatten</span><span class="p">(),</span> <span class="n">env</span><span class="o">.</span><span class="n">action_space</span><span class="o">.</span><span class="n">low</span><span class="p">,</span> <span class="n">env</span><span class="o">.</span><span class="n">action_space</span><span class="o">.</span><span class="n">high</span><span class="p">)</span>
+            <span class="n">plot_heatmap</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">check_decrease</span><span class="p">,</span> <span class="n">actions_clip</span><span class="p">,</span> <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="n">filename</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+        <span class="n">filename</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Vdiff_iteration=</span><span class="si">{</span><span class="n">general_config</span><span class="p">[</span><span class="s1">&#39;iteration&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="n">plot_heatmap</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">check_decrease</span><span class="p">,</span> <span class="n">V_expDecrNext</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span> <span class="o">-</span> <span class="n">V_expDecr</span><span class="p">,</span> <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="n">filename</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                     <span class="n">size</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">V_init_violations</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">V_unsafe_violations</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">V_expDecr_violations</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">Certificate successfully validated!&#39;</span><span class="p">)</span>
+            <span class="n">LOGG</span><span class="p">[</span><span class="s1">&#39;correct certificate&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">LOGG</span><span class="p">[</span><span class="s1">&#39;correct certificate&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">Certificate is incorrect (conditions are violated; see above)&#39;</span><span class="p">)</span>
+
+        <span class="c1"># %%</span>
+
+        <span class="k">if</span> <span class="n">num_traces</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">sim</span> <span class="o">=</span> <span class="n">Simulator</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">Policy_state</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">init_space</span><span class="o">=</span><span class="n">env</span><span class="o">.</span><span class="n">init_space</span><span class="p">,</span> <span class="n">xInits</span><span class="o">=</span><span class="mi">10000</span><span class="p">)</span>
+            <span class="n">traces</span><span class="p">,</span> <span class="n">actions</span><span class="p">,</span> <span class="n">empirical_sat</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">empirical_reachability</span><span class="p">(</span><span class="n">num_traces</span><span class="o">=</span><span class="n">num_traces</span><span class="p">,</span> <span class="n">horizon</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- Empirical satisfaction probability: </span><span class="si">{</span><span class="n">empirical_sat</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1"> (out of </span><span class="si">{</span><span class="n">num_traces</span><span class="si">}</span><span class="s1"> simulations)&#39;</span><span class="p">)</span>
+            <span class="n">LOGG</span><span class="p">[</span><span class="s1">&#39;empirical satisfaction&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">empirical_sat</span>
+
+            <span class="n">filename</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;validation_traces_</span><span class="si">{</span><span class="n">start_datetime</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="n">sim</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">traces</span><span class="p">,</span> <span class="n">num_to_plot</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="n">filename</span><span class="p">)</span>
+
+        <span class="c1"># Export log to csv</span>
+        <span class="n">LOGG_series</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">LOGG</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;validate log&quot;</span><span class="p">)</span>
+        <span class="n">LOGG_series</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="s1">&#39;validation_log.csv&#39;</span><span class="p">))</span>
+
+    <span class="k">return</span></div>
+
+
+
+<span class="c1"># %%</span>
+<div class="viewcode-block" id="validate_all">
+<a class="viewcode-back" href="../validate_certificate.html#validate_certificate.validate_all">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">validate_all</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">final_ckpt_name</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Validate all learned certificates stored in the output folder (which contain the given prefix)</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="n">check_folder</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">cwd</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">check_folder</span><span class="p">)</span>
+    <span class="n">subfolders</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span><span class="o">.</span><span class="n">path</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">scandir</span><span class="p">(</span><span class="n">check_folder</span><span class="p">)</span> <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">is_dir</span><span class="p">()]</span>
+    <span class="n">validate_ckpts</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="c1"># Iterate over all folders</span>
+    <span class="k">for</span> <span class="n">folder</span> <span class="ow">in</span> <span class="n">subfolders</span><span class="p">:</span>
+        <span class="c1"># Extract lowest-level folder</span>
+        <span class="n">relfolder</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">folder</span><span class="p">)</span><span class="o">.</span><span class="n">name</span>
+
+        <span class="c1"># Check if folder contains given prefix (or if no prefix is required)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">prefix</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">relfolder</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">prefix</span><span class="p">):</span>
+            <span class="n">subsubfolders</span> <span class="o">=</span> <span class="p">[</span><span class="n">Path</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">scandir</span><span class="p">(</span><span class="n">folder</span><span class="p">)</span> <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">is_dir</span><span class="p">()]</span>
+
+            <span class="c1"># If final checkpoint is in the subfolder, add it to the list</span>
+            <span class="k">if</span> <span class="n">final_ckpt_name</span> <span class="ow">in</span> <span class="n">subsubfolders</span><span class="p">:</span>
+                <span class="n">validate_ckpts</span> <span class="o">+=</span> <span class="p">[</span><span class="n">Path</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="n">final_ckpt_name</span><span class="p">)]</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Found </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">validate_ckpts</span><span class="p">)</span><span class="si">}</span><span class="s1"> checkpoint(s) to validate&#39;</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">checkpoint_path</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">validate_ckpts</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">Checkpoint #</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">checkpoint_path</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;==========================&#39;</span><span class="p">)</span>
+        <span class="n">validate_RASM</span><span class="p">(</span><span class="n">checkpoint_path</span><span class="o">=</span><span class="n">checkpoint_path</span><span class="p">,</span> <span class="n">cell_width</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">cell_width</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span>
+                      <span class="n">expected_decrease_samples</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">expected_decrease_samples</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">seed</span><span class="p">,</span>
+                      <span class="n">num_traces</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">num_simulations</span><span class="p">,</span> <span class="n">validate_conditions</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">validate_conditions</span><span class="p">,</span> <span class="n">plot_RASM</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">plot_RASM</span><span class="p">,</span> <span class="n">plot_latex_text</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">plot_latex_text</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># %%</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Empirically validate learned (log)RASMs for all checkpoints in the given folder, or for a single specified checkpoint.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">prefix_chars</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">)</span>
+
+    <span class="c1"># First two arguments are for validating *all checkpoints* in the provided folder</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--check_folder&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Folder to load orbax checkpoints from.&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--prefix&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Only check checkpoints whose output folder starts with the given prefix.&quot;</span><span class="p">)</span>
+    <span class="c1">#</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--checkpoint&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;File to load orbax checkpoint from&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--cell_width&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Cell width of partitioning (logRASM/RASM conditions are checked for every cell center)&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--num_simulations&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">10000</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Number of traces to simulate (for empirically estimating the reach-avoid probability).&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--batch_size&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">10000</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Number of states for which to check exp. decrease condition in the same batch.&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--forward_pass_batch_size&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">1000000</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Batch size for forward passes in neural network.&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--expected_decrease_samples&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Number of samples to validate expected decrease condition with.&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--seed&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Random seed&quot;</span><span class="p">)</span>
+
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--plot_RASM&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="n">argparse</span><span class="o">.</span><span class="n">BooleanOptionalAction</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;If True, plot RASM.&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--validate_conditions&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="n">argparse</span><span class="o">.</span><span class="n">BooleanOptionalAction</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;If True, RASM conditions are validated.&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--plot_latex_text&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="n">argparse</span><span class="o">.</span><span class="n">BooleanOptionalAction</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;If True, use LaTeX for plotting.&quot;</span><span class="p">)</span>
+
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+    <span class="n">args</span><span class="o">.</span><span class="n">cwd</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span>
+
+    <span class="c1"># Check whether to check a single checkpoint or a complete folder</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">check_folder</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+
+        <span class="n">check_folder</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">cwd</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">check_folder</span><span class="p">)</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- Validate all checkpoints in folder &quot;</span><span class="si">{</span><span class="n">check_folder</span><span class="si">}</span><span class="s1">&quot;&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">prefix</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- Restrict to folders with prefix: &quot;</span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">prefix</span><span class="si">}</span><span class="s1">&quot;&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">checkpoint</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Warning: --checkpoint argument ignored when also specifying --check_folder.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Check complete folder</span>
+        <span class="n">validate_all</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">final_ckpt_name</span><span class="o">=</span><span class="s1">&#39;final_ckpt&#39;</span><span class="p">)</span>
+
+    <span class="k">else</span><span class="p">:</span>
+
+        <span class="c1"># Check single checkpoint</span>
+        <span class="n">checkpoint_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">cwd</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">checkpoint</span><span class="p">)</span>
+
+        <span class="n">validate_RASM</span><span class="p">(</span><span class="n">checkpoint_path</span><span class="o">=</span><span class="n">checkpoint_path</span><span class="p">,</span> <span class="n">cell_width</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">cell_width</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span>
+                      <span class="n">expected_decrease_samples</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">expected_decrease_samples</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">seed</span><span class="p">,</span>
+                      <span class="n">num_traces</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">num_simulations</span><span class="p">,</span> <span class="n">validate_conditions</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">validate_conditions</span><span class="p">,</span> <span class="n">plot_RASM</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">plot_RASM</span><span class="p">,</span> <span class="n">plot_latex_text</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">plot_latex_text</span><span class="p">)</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Thom Badings, Wietze Koops, Sebastian Junges, Nils Jansen.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

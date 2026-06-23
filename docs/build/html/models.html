@@ -1,0 +1,596 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>models package &mdash; logRASM v1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=5cb08e4e"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="run module" href="run.html" />
+    <link rel="prev" title="core package" href="core.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            logRASM
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="ReadMe.html">Policy Verification in Stochastic Dynamical Systems Using Logarithmic Neural Certificates</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ReadMe.html#what-does-this-code-do">1. What does this code do?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ReadMe.html#run-from-a-docker-container-preferred">2. Run from a Docker container (preferred)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ReadMe.html#installing-from-source">3. Installing from source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ReadMe.html#running-for-a-single-benchmark-smoke-test">4. Running for a single benchmark (smoke test)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ReadMe.html#reproducing-results-from-the-paper">5. Reproducing results from the paper</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ReadMe.html#training-policies-with-stable-baselines">6. Training policies with Stable-Baselines</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ReadMe.html#overview-of-input-arguments">7. Overview of input arguments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ReadMe.html#rebuilding-the-docker-container">8. Rebuilding the Docker container</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">Code documentation</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="core.html">core package</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">models package</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#module-models.base_class">models.base_class module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#models.base_class.BaseEnvironment"><code class="docutils literal notranslate"><span class="pre">BaseEnvironment</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-models.collision_avoidance">models.collision_avoidance module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#models.collision_avoidance.CollisionAvoidance"><code class="docutils literal notranslate"><span class="pre">CollisionAvoidance</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-models.drone4D">models.drone4D module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#models.drone4D.Drone4D"><code class="docutils literal notranslate"><span class="pre">Drone4D</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-models.linearsystem">models.linearsystem module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#models.linearsystem.LinearSystem"><code class="docutils literal notranslate"><span class="pre">LinearSystem</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-models.linearsystem4D">models.linearsystem4D module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#models.linearsystem4D.LinearSystem4D"><code class="docutils literal notranslate"><span class="pre">LinearSystem4D</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-models.pendulum">models.pendulum module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#models.pendulum.Pendulum"><code class="docutils literal notranslate"><span class="pre">Pendulum</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#models.pendulum.angle_normalize"><code class="docutils literal notranslate"><span class="pre">angle_normalize()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-models.planar_robot">models.planar_robot module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#models.planar_robot.PlanarRobot"><code class="docutils literal notranslate"><span class="pre">PlanarRobot</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#models.planar_robot.angle_normalize"><code class="docutils literal notranslate"><span class="pre">angle_normalize()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-models.triple_integrator">models.triple_integrator module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#models.triple_integrator.TripleIntegrator"><code class="docutils literal notranslate"><span class="pre">TripleIntegrator</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-models">Module contents</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#models.get_model_fun"><code class="docutils literal notranslate"><span class="pre">get_model_fun()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="run.html">run module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="train_SB3.html">train_SB3 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="validate_certificate.html">validate_certificate module</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">logRASM</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">Code documentation</a></li>
+      <li class="breadcrumb-item active">models package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/models.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="models-package">
+<h1>models package<a class="headerlink" href="#models-package" title="Link to this heading"></a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+</section>
+<section id="module-models.base_class">
+<span id="models-base-class-module"></span><h2>models.base_class module<a class="headerlink" href="#module-models.base_class" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="models.base_class.BaseEnvironment">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">models.base_class.</span></span><span class="sig-name descname"><span class="pre">BaseEnvironment</span></span><a class="reference internal" href="_modules/models/base_class.html#BaseEnvironment"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.base_class.BaseEnvironment" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="models.base_class.BaseEnvironment.initialize_gym_env">
+<span class="sig-name descname"><span class="pre">initialize_gym_env</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/base_class.html#BaseEnvironment.initialize_gym_env"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.base_class.BaseEnvironment.initialize_gym_env" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.base_class.BaseEnvironment.integrate_noise_triangular">
+<span class="sig-name descname"><span class="pre">integrate_noise_triangular</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">w_lb</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w_ub</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/base_class.html#BaseEnvironment.integrate_noise_triangular"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.base_class.BaseEnvironment.integrate_noise_triangular" title="Link to this definition"></a></dt>
+<dd><p>Integrate noise distribution in the box [w_lb, w_ub].</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.base_class.BaseEnvironment.reset">
+<span class="sig-name descname"><span class="pre">reset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">seed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">options</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/base_class.html#BaseEnvironment.reset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.base_class.BaseEnvironment.reset" title="Link to this definition"></a></dt>
+<dd><p>Reset function for pytorch / gymnasium environment</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.base_class.BaseEnvironment.reset_jax">
+<span class="sig-name descname"><span class="pre">reset_jax</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/base_class.html#BaseEnvironment.reset_jax"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.base_class.BaseEnvironment.reset_jax" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.base_class.BaseEnvironment.set_linear_lipschitz">
+<span class="sig-name descname"><span class="pre">set_linear_lipschitz</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/base_class.html#BaseEnvironment.set_linear_lipschitz"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.base_class.BaseEnvironment.set_linear_lipschitz" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.base_class.BaseEnvironment.step_noise_key">
+<span class="sig-name descname"><span class="pre">step_noise_key</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">u</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/base_class.html#BaseEnvironment.step_noise_key"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.base_class.BaseEnvironment.step_noise_key" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-models.collision_avoidance">
+<span id="models-collision-avoidance-module"></span><h2>models.collision_avoidance module<a class="headerlink" href="#module-models.collision_avoidance" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="models.collision_avoidance.CollisionAvoidance">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">models.collision_avoidance.</span></span><span class="sig-name descname"><span class="pre">CollisionAvoidance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/collision_avoidance.html#CollisionAvoidance"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.collision_avoidance.CollisionAvoidance" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#models.base_class.BaseEnvironment" title="models.base_class.BaseEnvironment"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseEnvironment</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Env</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="models.collision_avoidance.CollisionAvoidance.integrate_noise">
+<span class="sig-name descname"><span class="pre">integrate_noise</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">w_lb</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w_ub</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/collision_avoidance.html#CollisionAvoidance.integrate_noise"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.collision_avoidance.CollisionAvoidance.integrate_noise" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="models.collision_avoidance.CollisionAvoidance.metadata">
+<span class="sig-name descname"><span class="pre">metadata</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'render_fps':</span> <span class="pre">30,</span> <span class="pre">'render_modes':</span> <span class="pre">[]}</span></em><a class="headerlink" href="#models.collision_avoidance.CollisionAvoidance.metadata" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.collision_avoidance.CollisionAvoidance.sample_noise">
+<span class="sig-name descname"><span class="pre">sample_noise</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/collision_avoidance.html#CollisionAvoidance.sample_noise"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.collision_avoidance.CollisionAvoidance.sample_noise" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.collision_avoidance.CollisionAvoidance.sample_noise_numpy">
+<span class="sig-name descname"><span class="pre">sample_noise_numpy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/collision_avoidance.html#CollisionAvoidance.sample_noise_numpy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.collision_avoidance.CollisionAvoidance.sample_noise_numpy" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.collision_avoidance.CollisionAvoidance.step">
+<span class="sig-name descname"><span class="pre">step</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">u</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/collision_avoidance.html#CollisionAvoidance.step"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.collision_avoidance.CollisionAvoidance.step" title="Link to this definition"></a></dt>
+<dd><p>Step in the gymnasium environment (only used for policy initialization with StableBaselines3).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.collision_avoidance.CollisionAvoidance.step_base">
+<span class="sig-name descname"><span class="pre">step_base</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">u</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/collision_avoidance.html#CollisionAvoidance.step_base"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.collision_avoidance.CollisionAvoidance.step_base" title="Link to this definition"></a></dt>
+<dd><p>Make a step in the dynamics. When defining a new environment, this the function that should be modified.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.collision_avoidance.CollisionAvoidance.step_noise_set">
+<span class="sig-name descname"><span class="pre">step_noise_set</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">u</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w_lb</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w_ub</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/collision_avoidance.html#CollisionAvoidance.step_noise_set"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.collision_avoidance.CollisionAvoidance.step_noise_set" title="Link to this definition"></a></dt>
+<dd><p>Make step with dynamics for a set of noise values.
+Propagate state under lower/upper bound of the noise (note: this works because the noise is additive)</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.collision_avoidance.CollisionAvoidance.step_train">
+<span class="sig-name descname"><span class="pre">step_train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">u</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">steps_since_reset</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/collision_avoidance.html#CollisionAvoidance.step_train"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.collision_avoidance.CollisionAvoidance.step_train" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-models.drone4D">
+<span id="models-drone4d-module"></span><h2>models.drone4D module<a class="headerlink" href="#module-models.drone4D" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="models.drone4D.Drone4D">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">models.drone4D.</span></span><span class="sig-name descname"><span class="pre">Drone4D</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/drone4D.html#Drone4D"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.drone4D.Drone4D" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#models.base_class.BaseEnvironment" title="models.base_class.BaseEnvironment"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseEnvironment</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Env</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="models.drone4D.Drone4D.integrate_noise">
+<span class="sig-name descname"><span class="pre">integrate_noise</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">w_lb</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w_ub</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/drone4D.html#Drone4D.integrate_noise"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.drone4D.Drone4D.integrate_noise" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="models.drone4D.Drone4D.metadata">
+<span class="sig-name descname"><span class="pre">metadata</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'render_fps':</span> <span class="pre">30,</span> <span class="pre">'render_modes':</span> <span class="pre">[]}</span></em><a class="headerlink" href="#models.drone4D.Drone4D.metadata" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.drone4D.Drone4D.sample_noise">
+<span class="sig-name descname"><span class="pre">sample_noise</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/drone4D.html#Drone4D.sample_noise"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.drone4D.Drone4D.sample_noise" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.drone4D.Drone4D.sample_noise_numpy">
+<span class="sig-name descname"><span class="pre">sample_noise_numpy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/drone4D.html#Drone4D.sample_noise_numpy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.drone4D.Drone4D.sample_noise_numpy" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.drone4D.Drone4D.step">
+<span class="sig-name descname"><span class="pre">step</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">u</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/drone4D.html#Drone4D.step"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.drone4D.Drone4D.step" title="Link to this definition"></a></dt>
+<dd><p>Step in the gymnasium environment (only used for policy initialization with StableBaselines3).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.drone4D.Drone4D.step_base">
+<span class="sig-name descname"><span class="pre">step_base</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">u</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/drone4D.html#Drone4D.step_base"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.drone4D.Drone4D.step_base" title="Link to this definition"></a></dt>
+<dd><p>Make a step in the dynamics. When defining a new environment, this the function that should be modified.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.drone4D.Drone4D.step_noise_set">
+<span class="sig-name descname"><span class="pre">step_noise_set</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">u</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w_lb</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w_ub</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/drone4D.html#Drone4D.step_noise_set"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.drone4D.Drone4D.step_noise_set" title="Link to this definition"></a></dt>
+<dd><p>Make step with dynamics for a set of noise values</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.drone4D.Drone4D.step_train">
+<span class="sig-name descname"><span class="pre">step_train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">u</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">steps_since_reset</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/drone4D.html#Drone4D.step_train"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.drone4D.Drone4D.step_train" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-models.linearsystem">
+<span id="models-linearsystem-module"></span><h2>models.linearsystem module<a class="headerlink" href="#module-models.linearsystem" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="models.linearsystem.LinearSystem">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">models.linearsystem.</span></span><span class="sig-name descname"><span class="pre">LinearSystem</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/linearsystem.html#LinearSystem"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.linearsystem.LinearSystem" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#models.base_class.BaseEnvironment" title="models.base_class.BaseEnvironment"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseEnvironment</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Env</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="models.linearsystem.LinearSystem.integrate_noise">
+<span class="sig-name descname"><span class="pre">integrate_noise</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">w_lb</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w_ub</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/linearsystem.html#LinearSystem.integrate_noise"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.linearsystem.LinearSystem.integrate_noise" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="models.linearsystem.LinearSystem.metadata">
+<span class="sig-name descname"><span class="pre">metadata</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'render_fps':</span> <span class="pre">30,</span> <span class="pre">'render_modes':</span> <span class="pre">[]}</span></em><a class="headerlink" href="#models.linearsystem.LinearSystem.metadata" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.linearsystem.LinearSystem.sample_noise">
+<span class="sig-name descname"><span class="pre">sample_noise</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/linearsystem.html#LinearSystem.sample_noise"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.linearsystem.LinearSystem.sample_noise" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.linearsystem.LinearSystem.sample_noise_numpy">
+<span class="sig-name descname"><span class="pre">sample_noise_numpy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/linearsystem.html#LinearSystem.sample_noise_numpy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.linearsystem.LinearSystem.sample_noise_numpy" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.linearsystem.LinearSystem.step">
+<span class="sig-name descname"><span class="pre">step</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">u</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/linearsystem.html#LinearSystem.step"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.linearsystem.LinearSystem.step" title="Link to this definition"></a></dt>
+<dd><p>Step in the gymnasium environment (only used for policy initialization with StableBaselines3).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.linearsystem.LinearSystem.step_base">
+<span class="sig-name descname"><span class="pre">step_base</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">u</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/linearsystem.html#LinearSystem.step_base"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.linearsystem.LinearSystem.step_base" title="Link to this definition"></a></dt>
+<dd><p>Make a step in the dynamics. When defining a new environment, this the function that should be modified.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.linearsystem.LinearSystem.step_noise_set">
+<span class="sig-name descname"><span class="pre">step_noise_set</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">u</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w_lb</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w_ub</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/linearsystem.html#LinearSystem.step_noise_set"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.linearsystem.LinearSystem.step_noise_set" title="Link to this definition"></a></dt>
+<dd><p>Make step with dynamics for a set of noise values</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.linearsystem.LinearSystem.step_train">
+<span class="sig-name descname"><span class="pre">step_train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">u</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">steps_since_reset</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/linearsystem.html#LinearSystem.step_train"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.linearsystem.LinearSystem.step_train" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-models.linearsystem4D">
+<span id="models-linearsystem4d-module"></span><h2>models.linearsystem4D module<a class="headerlink" href="#module-models.linearsystem4D" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="models.linearsystem4D.LinearSystem4D">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">models.linearsystem4D.</span></span><span class="sig-name descname"><span class="pre">LinearSystem4D</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/linearsystem4D.html#LinearSystem4D"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.linearsystem4D.LinearSystem4D" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#models.base_class.BaseEnvironment" title="models.base_class.BaseEnvironment"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseEnvironment</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Env</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="models.linearsystem4D.LinearSystem4D.integrate_noise">
+<span class="sig-name descname"><span class="pre">integrate_noise</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">w_lb</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w_ub</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/linearsystem4D.html#LinearSystem4D.integrate_noise"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.linearsystem4D.LinearSystem4D.integrate_noise" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="models.linearsystem4D.LinearSystem4D.metadata">
+<span class="sig-name descname"><span class="pre">metadata</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'render_fps':</span> <span class="pre">30,</span> <span class="pre">'render_modes':</span> <span class="pre">[]}</span></em><a class="headerlink" href="#models.linearsystem4D.LinearSystem4D.metadata" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.linearsystem4D.LinearSystem4D.sample_noise">
+<span class="sig-name descname"><span class="pre">sample_noise</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/linearsystem4D.html#LinearSystem4D.sample_noise"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.linearsystem4D.LinearSystem4D.sample_noise" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.linearsystem4D.LinearSystem4D.sample_noise_numpy">
+<span class="sig-name descname"><span class="pre">sample_noise_numpy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/linearsystem4D.html#LinearSystem4D.sample_noise_numpy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.linearsystem4D.LinearSystem4D.sample_noise_numpy" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.linearsystem4D.LinearSystem4D.step">
+<span class="sig-name descname"><span class="pre">step</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">u</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/linearsystem4D.html#LinearSystem4D.step"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.linearsystem4D.LinearSystem4D.step" title="Link to this definition"></a></dt>
+<dd><p>Step in the gymnasium environment (only used for policy initialization with StableBaselines3).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.linearsystem4D.LinearSystem4D.step_base">
+<span class="sig-name descname"><span class="pre">step_base</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">u</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/linearsystem4D.html#LinearSystem4D.step_base"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.linearsystem4D.LinearSystem4D.step_base" title="Link to this definition"></a></dt>
+<dd><p>Make a step in the dynamics. When defining a new environment, this the function that should be modified.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.linearsystem4D.LinearSystem4D.step_noise_set">
+<span class="sig-name descname"><span class="pre">step_noise_set</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">u</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w_lb</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w_ub</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/linearsystem4D.html#LinearSystem4D.step_noise_set"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.linearsystem4D.LinearSystem4D.step_noise_set" title="Link to this definition"></a></dt>
+<dd><p>Make step with dynamics for a set of noise values</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.linearsystem4D.LinearSystem4D.step_train">
+<span class="sig-name descname"><span class="pre">step_train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">u</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">steps_since_reset</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/linearsystem4D.html#LinearSystem4D.step_train"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.linearsystem4D.LinearSystem4D.step_train" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-models.pendulum">
+<span id="models-pendulum-module"></span><h2>models.pendulum module<a class="headerlink" href="#module-models.pendulum" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="models.pendulum.Pendulum">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">models.pendulum.</span></span><span class="sig-name descname"><span class="pre">Pendulum</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/pendulum.html#Pendulum"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.pendulum.Pendulum" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#models.base_class.BaseEnvironment" title="models.base_class.BaseEnvironment"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseEnvironment</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Env</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="models.pendulum.Pendulum.integrate_noise">
+<span class="sig-name descname"><span class="pre">integrate_noise</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">w_lb</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w_ub</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/pendulum.html#Pendulum.integrate_noise"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.pendulum.Pendulum.integrate_noise" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="models.pendulum.Pendulum.metadata">
+<span class="sig-name descname"><span class="pre">metadata</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'render_fps':</span> <span class="pre">30,</span> <span class="pre">'render_modes':</span> <span class="pre">[]}</span></em><a class="headerlink" href="#models.pendulum.Pendulum.metadata" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.pendulum.Pendulum.sample_noise">
+<span class="sig-name descname"><span class="pre">sample_noise</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/pendulum.html#Pendulum.sample_noise"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.pendulum.Pendulum.sample_noise" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.pendulum.Pendulum.sample_noise_numpy">
+<span class="sig-name descname"><span class="pre">sample_noise_numpy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/pendulum.html#Pendulum.sample_noise_numpy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.pendulum.Pendulum.sample_noise_numpy" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.pendulum.Pendulum.step">
+<span class="sig-name descname"><span class="pre">step</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">u</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/pendulum.html#Pendulum.step"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.pendulum.Pendulum.step" title="Link to this definition"></a></dt>
+<dd><p>Step in the gymnasium environment (only used for policy initialization with StableBaselines3).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.pendulum.Pendulum.step_base">
+<span class="sig-name descname"><span class="pre">step_base</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">u</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/pendulum.html#Pendulum.step_base"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.pendulum.Pendulum.step_base" title="Link to this definition"></a></dt>
+<dd><p>Make a step in the dynamics. When defining a new environment, this the function that should be modified.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.pendulum.Pendulum.step_noise_set">
+<span class="sig-name descname"><span class="pre">step_noise_set</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">u</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w_lb</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w_ub</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/pendulum.html#Pendulum.step_noise_set"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.pendulum.Pendulum.step_noise_set" title="Link to this definition"></a></dt>
+<dd><p>Make step with dynamics for a set of noise values.
+Propagate state under lower/upper bound of the noise (note: this works because the noise is additive)</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.pendulum.Pendulum.step_train">
+<span class="sig-name descname"><span class="pre">step_train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">u</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">steps_since_reset</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/pendulum.html#Pendulum.step_train"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.pendulum.Pendulum.step_train" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="models.pendulum.angle_normalize">
+<span class="sig-prename descclassname"><span class="pre">models.pendulum.</span></span><span class="sig-name descname"><span class="pre">angle_normalize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/pendulum.html#angle_normalize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.pendulum.angle_normalize" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</section>
+<section id="module-models.planar_robot">
+<span id="models-planar-robot-module"></span><h2>models.planar_robot module<a class="headerlink" href="#module-models.planar_robot" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="models.planar_robot.PlanarRobot">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">models.planar_robot.</span></span><span class="sig-name descname"><span class="pre">PlanarRobot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/planar_robot.html#PlanarRobot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.planar_robot.PlanarRobot" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#models.base_class.BaseEnvironment" title="models.base_class.BaseEnvironment"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseEnvironment</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Env</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="models.planar_robot.PlanarRobot.integrate_noise">
+<span class="sig-name descname"><span class="pre">integrate_noise</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">w_lb</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w_ub</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/planar_robot.html#PlanarRobot.integrate_noise"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.planar_robot.PlanarRobot.integrate_noise" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="models.planar_robot.PlanarRobot.metadata">
+<span class="sig-name descname"><span class="pre">metadata</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'render_fps':</span> <span class="pre">30,</span> <span class="pre">'render_modes':</span> <span class="pre">[]}</span></em><a class="headerlink" href="#models.planar_robot.PlanarRobot.metadata" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.planar_robot.PlanarRobot.sample_noise">
+<span class="sig-name descname"><span class="pre">sample_noise</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/planar_robot.html#PlanarRobot.sample_noise"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.planar_robot.PlanarRobot.sample_noise" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.planar_robot.PlanarRobot.sample_noise_numpy">
+<span class="sig-name descname"><span class="pre">sample_noise_numpy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/planar_robot.html#PlanarRobot.sample_noise_numpy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.planar_robot.PlanarRobot.sample_noise_numpy" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.planar_robot.PlanarRobot.step">
+<span class="sig-name descname"><span class="pre">step</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">u</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/planar_robot.html#PlanarRobot.step"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.planar_robot.PlanarRobot.step" title="Link to this definition"></a></dt>
+<dd><p>Step in the gymnasium environment (only used for policy initialization with StableBaselines3).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.planar_robot.PlanarRobot.step_base">
+<span class="sig-name descname"><span class="pre">step_base</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">u</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/planar_robot.html#PlanarRobot.step_base"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.planar_robot.PlanarRobot.step_base" title="Link to this definition"></a></dt>
+<dd><p>Make a step in the dynamics. When defining a new environment, this the function that should be modified.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.planar_robot.PlanarRobot.step_noise_set">
+<span class="sig-name descname"><span class="pre">step_noise_set</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">u</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w_lb</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w_ub</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/planar_robot.html#PlanarRobot.step_noise_set"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.planar_robot.PlanarRobot.step_noise_set" title="Link to this definition"></a></dt>
+<dd><p>Make step with dynamics for a set of noise values.
+Propagate state under lower/upper bound of the noise (note: this works because the noise is additive)</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.planar_robot.PlanarRobot.step_train">
+<span class="sig-name descname"><span class="pre">step_train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">u</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">steps_since_reset</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/planar_robot.html#PlanarRobot.step_train"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.planar_robot.PlanarRobot.step_train" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="models.planar_robot.angle_normalize">
+<span class="sig-prename descclassname"><span class="pre">models.planar_robot.</span></span><span class="sig-name descname"><span class="pre">angle_normalize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/planar_robot.html#angle_normalize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.planar_robot.angle_normalize" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</section>
+<section id="module-models.triple_integrator">
+<span id="models-triple-integrator-module"></span><h2>models.triple_integrator module<a class="headerlink" href="#module-models.triple_integrator" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="models.triple_integrator.TripleIntegrator">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">models.triple_integrator.</span></span><span class="sig-name descname"><span class="pre">TripleIntegrator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/triple_integrator.html#TripleIntegrator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.triple_integrator.TripleIntegrator" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#models.base_class.BaseEnvironment" title="models.base_class.BaseEnvironment"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseEnvironment</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Env</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="models.triple_integrator.TripleIntegrator.integrate_noise">
+<span class="sig-name descname"><span class="pre">integrate_noise</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">w_lb</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w_ub</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/triple_integrator.html#TripleIntegrator.integrate_noise"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.triple_integrator.TripleIntegrator.integrate_noise" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="models.triple_integrator.TripleIntegrator.metadata">
+<span class="sig-name descname"><span class="pre">metadata</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'render_fps':</span> <span class="pre">30,</span> <span class="pre">'render_modes':</span> <span class="pre">[]}</span></em><a class="headerlink" href="#models.triple_integrator.TripleIntegrator.metadata" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.triple_integrator.TripleIntegrator.sample_noise">
+<span class="sig-name descname"><span class="pre">sample_noise</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/triple_integrator.html#TripleIntegrator.sample_noise"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.triple_integrator.TripleIntegrator.sample_noise" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.triple_integrator.TripleIntegrator.sample_noise_numpy">
+<span class="sig-name descname"><span class="pre">sample_noise_numpy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/triple_integrator.html#TripleIntegrator.sample_noise_numpy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.triple_integrator.TripleIntegrator.sample_noise_numpy" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.triple_integrator.TripleIntegrator.step">
+<span class="sig-name descname"><span class="pre">step</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">u</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/triple_integrator.html#TripleIntegrator.step"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.triple_integrator.TripleIntegrator.step" title="Link to this definition"></a></dt>
+<dd><p>Step in the gymnasium environment (only used for policy initialization with StableBaselines3).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.triple_integrator.TripleIntegrator.step_base">
+<span class="sig-name descname"><span class="pre">step_base</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">u</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/triple_integrator.html#TripleIntegrator.step_base"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.triple_integrator.TripleIntegrator.step_base" title="Link to this definition"></a></dt>
+<dd><p>Make a step in the dynamics. When defining a new environment, this the function that should be modified.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.triple_integrator.TripleIntegrator.step_noise_set">
+<span class="sig-name descname"><span class="pre">step_noise_set</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">u</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w_lb</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w_ub</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/triple_integrator.html#TripleIntegrator.step_noise_set"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.triple_integrator.TripleIntegrator.step_noise_set" title="Link to this definition"></a></dt>
+<dd><p>Make step with dynamics for a set of noise values</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="models.triple_integrator.TripleIntegrator.step_train">
+<span class="sig-name descname"><span class="pre">step_train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">u</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">steps_since_reset</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models/triple_integrator.html#TripleIntegrator.step_train"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.triple_integrator.TripleIntegrator.step_train" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-models">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-models" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="models.get_model_fun">
+<span class="sig-prename descclassname"><span class="pre">models.</span></span><span class="sig-name descname"><span class="pre">get_model_fun</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models.html#get_model_fun"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#models.get_model_fun" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="core.html" class="btn btn-neutral float-left" title="core package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="run.html" class="btn btn-neutral float-right" title="run module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Thom Badings, Wietze Koops, Sebastian Junges, Nils Jansen.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

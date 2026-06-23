@@ -1,0 +1,7 @@
+,time [s]
+initialize,0.181753
+pretrain_policy,23.137014
+initialize_CEGIS,0.036387
+iter0_learner,8.825905
+iter0_plot,0.320995
+iter0_verifier,30.562195

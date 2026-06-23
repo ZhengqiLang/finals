@@ -1,0 +1,15 @@
+,info
+start_date,2026-06-02_00-42-03
+model,LinearSystem
+layout,0
+seed,4
+ckpt,
+algorithm,PPO_JAX
+probability_bound,0.8
+local_refinement,True
+weighted_Lipschitz,True
+cplip,True
+split_lip,True
+improved_softplus_lip,False
+exp_certificate,False
+status,gradient_nan

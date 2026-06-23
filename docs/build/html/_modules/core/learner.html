@@ -1,0 +1,522 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>core.learner &mdash; logRASM v1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=5cb08e4e"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            logRASM
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html">Policy Verification in Stochastic Dynamical Systems Using Logarithmic Neural Certificates</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html#what-does-this-code-do">1. What does this code do?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html#run-from-a-docker-container-preferred">2. Run from a Docker container (preferred)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html#installing-from-source">3. Installing from source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html#running-for-a-single-benchmark-smoke-test">4. Running for a single benchmark (smoke test)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html#reproducing-results-from-the-paper">5. Reproducing results from the paper</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html#training-policies-with-stable-baselines">6. Training policies with Stable-Baselines</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html#overview-of-input-arguments">7. Overview of input arguments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html#rebuilding-the-docker-container">8. Rebuilding the Docker container</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">Code documentation</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">logRASM</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">core.learner</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for core.learner</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">partial</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">jax</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">flax.training.train_state</span><span class="w"> </span><span class="kn">import</span> <span class="n">TrainState</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">jax</span><span class="w"> </span><span class="kn">import</span> <span class="n">numpy</span> <span class="k">as</span> <span class="n">jnp</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">core.commons</span><span class="w"> </span><span class="kn">import</span> <span class="n">MultiRectangularSet</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">core.jax_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">lipschitz_coeff</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">core.plot</span><span class="w"> </span><span class="kn">import</span> <span class="n">plot_dataset</span>
+
+
+<div class="viewcode-block" id="Learner">
+<a class="viewcode-back" href="../../core.html#core.learner.Learner">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">Learner</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Main learner class.</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">env</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Initialize the learner.</span>
+
+<span class="sd">        :param env: Environment. </span>
+<span class="sd">        :param args: Command line arguments given. </span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">env</span> <span class="o">=</span> <span class="n">env</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">linfty</span> <span class="o">=</span> <span class="kc">False</span>  <span class="c1"># L_infty has only experimental support (not used in experiments)</span>
+
+        <span class="c1"># Copy some arguments</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">auxiliary_loss</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">auxiliary_loss</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lambda_lipschitz</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">loss_lipschitz_lambda</span>  <span class="c1"># Lipschitz factor</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_lip_certificate</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">loss_lipschitz_certificate</span>  <span class="c1"># Above this value, incur loss</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_lip_policy</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">loss_lipschitz_policy</span>  <span class="c1"># Above this value, incur loss</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">weighted</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">weighted</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cplip</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">cplip</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">split_lip</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">split_lip</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_lip_policy</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">min_lip_policy_loss</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exp_certificate</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">exp_certificate</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">loss_decr_squared</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">loss_decr_squared</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">loss_decr_max</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">loss_decr_max</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">EPS_decrease</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">eps_decrease</span>
+
+        <span class="c1"># Set batch sizes</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">batch_size_total</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">batch_size</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">batch_size_base</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">batch_size</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">args</span><span class="o">.</span><span class="n">counterx_fraction</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">batch_size_counterx</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">batch_size</span> <span class="o">*</span> <span class="n">args</span><span class="o">.</span><span class="n">counterx_fraction</span><span class="p">)</span>
+
+        <span class="c1"># Calculate the number of samples for each region type (without counterexamples)</span>
+        <span class="n">MIN_SAMPLES</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">min_fraction_samples_per_region</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch_size_base</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">totvol</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">state_space</span><span class="o">.</span><span class="n">volume</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">init_space</span><span class="p">,</span> <span class="n">MultiRectangularSet</span><span class="p">):</span>
+            <span class="n">rel_vols</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">Set</span><span class="o">.</span><span class="n">volume</span> <span class="o">/</span> <span class="n">totvol</span> <span class="k">for</span> <span class="n">Set</span> <span class="ow">in</span> <span class="n">env</span><span class="o">.</span><span class="n">init_space</span><span class="o">.</span><span class="n">sets</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">num_samples_init</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">rel_vols</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch_size_base</span><span class="p">),</span> <span class="n">MIN_SAMPLES</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">num_samples_init</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">MIN_SAMPLES</span><span class="p">,</span>
+                                               <span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">init_space</span><span class="o">.</span><span class="n">volume</span> <span class="o">/</span> <span class="n">totvol</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch_size_base</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span>
+                <span class="nb">int</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">unsafe_space</span><span class="p">,</span> <span class="n">MultiRectangularSet</span><span class="p">):</span>
+            <span class="n">rel_vols</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">Set</span><span class="o">.</span><span class="n">volume</span> <span class="o">/</span> <span class="n">totvol</span> <span class="k">for</span> <span class="n">Set</span> <span class="ow">in</span> <span class="n">env</span><span class="o">.</span><span class="n">unsafe_space</span><span class="o">.</span><span class="n">sets</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">num_samples_unsafe</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">MIN_SAMPLES</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">rel_vols</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch_size_base</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">num_samples_unsafe</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">unsafe_space</span><span class="o">.</span><span class="n">volume</span> <span class="o">/</span> <span class="n">totvol</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch_size_base</span><span class="p">),</span>
+                                                 <span class="n">MIN_SAMPLES</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">target_space</span><span class="p">,</span> <span class="n">MultiRectangularSet</span><span class="p">):</span>
+            <span class="n">rel_vols</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">Set</span><span class="o">.</span><span class="n">volume</span> <span class="o">/</span> <span class="n">totvol</span> <span class="k">for</span> <span class="n">Set</span> <span class="ow">in</span> <span class="n">env</span><span class="o">.</span><span class="n">target_space</span><span class="o">.</span><span class="n">sets</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">num_samples_target</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">rel_vols</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch_size_base</span><span class="p">),</span> <span class="n">MIN_SAMPLES</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">num_samples_target</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">MIN_SAMPLES</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span>
+                <span class="n">env</span><span class="o">.</span><span class="n">target_space</span><span class="o">.</span><span class="n">volume</span> <span class="o">/</span> <span class="n">totvol</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch_size_base</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+
+        <span class="c1"># Infer the number of expected decrease samples based on the other batch sizes</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_samples_decrease</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">batch_size_base</span>
+                                               <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_samples_init</span><span class="p">)</span>
+                                               <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_samples_unsafe</span><span class="p">)</span>
+                                               <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_samples_target</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">silent</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- Num. base train samples per batch: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">batch_size_base</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;-- Initial state: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">num_samples_init</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;-- Unsafe state: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">num_samples_unsafe</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;-- Target state: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">num_samples_target</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;-- Expected decrease: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">num_samples_decrease</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- Num. counterexamples per batch: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">batch_size_counterx</span><span class="si">}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">lambda_lipschitz</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">silent</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;- Learner setting: Enable Lipschitz loss&#39;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;--- For certificate up to: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">max_lip_certificate</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;--- For policy up to: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">max_lip_policy</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">glob_min</span> <span class="o">=</span> <span class="mf">0.1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">N_expectation</span> <span class="o">=</span> <span class="mi">16</span>
+
+        <span class="c1"># Define vectorized functions for loss computation</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">loss_exp_decrease_vmap</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">loss_exp_decrease</span><span class="p">,</span> <span class="n">in_axes</span><span class="o">=</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="n">out_axes</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="k">return</span>
+
+<div class="viewcode-block" id="Learner.loss_exp_decrease">
+<a class="viewcode-back" href="../../core.html#core.learner.Learner.loss_exp_decrease">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">loss_exp_decrease</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">V_state</span><span class="p">,</span> <span class="n">V_params</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">noise_key</span><span class="p">,</span> <span class="n">probability_bound</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Compute expected certificate value in the new state for the loss related to condition 3 (expected decrease).</span>
+<span class="sd">        </span>
+<span class="sd">        :param V_state: Certificate neural network. </span>
+<span class="sd">        :param V_params: Parameters of the certificate neural network. </span>
+<span class="sd">        :param x: State.</span>
+<span class="sd">        :param u: Action.</span>
+<span class="sd">        :param noise_key: key of the random number generator.</span>
+<span class="sd">        :param probability_bound: The probability bound of the specification that we aim to certify.</span>
+<span class="sd">        :return: Expected certificate value in the new state.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="c1"># For each given noise_key, compute the successor state for the pair (x,u)</span>
+        <span class="n">state_new</span><span class="p">,</span> <span class="n">noise_key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">vstep_noise_batch</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">noise_key</span><span class="p">,</span> <span class="n">u</span><span class="p">)</span>
+
+        <span class="c1"># Function apply_fn does a forward pass in the certificate network for all successor states in state_new,</span>
+        <span class="c1"># which approximates the value of the certificate for the successor state (using different noise values).</span>
+        <span class="c1"># Then, the loss term is zero if the expected decrease in certificate value is at least tau*K.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">exp_certificate</span><span class="p">:</span>
+            <span class="n">V_expected</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span>
+                <span class="n">jnp</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">V_state</span><span class="o">.</span><span class="n">apply_fn</span><span class="p">(</span><span class="n">V_params</span><span class="p">,</span> <span class="n">state_new</span><span class="p">),</span> <span class="n">jnp</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">-</span> <span class="n">jnp</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">probability_bound</span><span class="p">))</span>
+            <span class="p">)))</span>
+            <span class="c1"># The jnp.minimum ensures that values do not become infinite (due to the exponential).</span>
+            <span class="c1"># Note that this retains the soundness since we may cap any valid lograsm at - jnp.log(1 - probability_bound).</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">V_expected</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span>
+                <span class="n">jnp</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">V_state</span><span class="o">.</span><span class="n">apply_fn</span><span class="p">(</span><span class="n">V_params</span><span class="p">,</span> <span class="n">state_new</span><span class="p">),</span> <span class="mi">2</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">probability_bound</span><span class="p">))</span>
+            <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">V_expected</span></div>
+
+
+<div class="viewcode-block" id="Learner.train_step">
+<a class="viewcode-back" href="../../core.html#core.learner.Learner.train_step">[docs]</a>
+    <span class="nd">@partial</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">,</span> <span class="n">static_argnums</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,))</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">train_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                   <span class="n">key</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span>
+                   <span class="n">V_state</span><span class="p">:</span> <span class="n">TrainState</span><span class="p">,</span>
+                   <span class="n">Policy_state</span><span class="p">:</span> <span class="n">TrainState</span><span class="p">,</span>
+                   <span class="n">counterexamples</span><span class="p">,</span>
+                   <span class="n">mesh_loss</span><span class="p">,</span>
+                   <span class="n">probability_bound</span><span class="p">,</span>
+                   <span class="n">expDecr_multiplier</span>
+                   <span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Perform one step of training the neural network.</span>
+
+<span class="sd">        :param key: key of the random number generator.</span>
+<span class="sd">        :param V_state: Certificate network.</span>
+<span class="sd">        :param Policy_state: Policy network.</span>
+<span class="sd">        :param counterexamples: Current list of counterexamples.</span>
+<span class="sd">        :param mesh_loss: float, determining the largest mesh for which a loss of 0 implies that the condition is satisfied. </span>
+<span class="sd">        :param probability_bound: The probability bound of the specification that we aim to certify. </span>
+<span class="sd">        :param expDecr_multiplier: Multiplier of the expected decrease loss. </span>
+<span class="sd">        :return:</span>
+<span class="sd">           - V_grads: Gradients of the certificate network. </span>
+<span class="sd">           - Policy_grads: Gradients of the policy network. </span>
+<span class="sd">           - infos: Dictionary, giving the total loss as well as each component (total, init, unsafe, expDecrease_mean, expDecrease_max (not used), Lipschitz (not used)).</span>
+<span class="sd">           - key: key of the random number generator.</span>
+<span class="sd">           - samples_in_batch: Dictionary, giving the samples used in the batch per category. </span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="c1"># Generate all random keys</span>
+        <span class="n">key</span><span class="p">,</span> <span class="n">cx_key</span><span class="p">,</span> <span class="n">init_key</span><span class="p">,</span> <span class="n">unsafe_key</span><span class="p">,</span> <span class="n">target_key</span><span class="p">,</span> <span class="n">decrease_key</span><span class="p">,</span> <span class="n">noise_key</span><span class="p">,</span> <span class="n">perturbation_key</span> <span class="o">=</span> \
+            <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="mi">8</span><span class="p">)</span>
+
+        <span class="c1"># Sample from the full list of counterexamples</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">counterexamples</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># Randomly sample counterexamples from the buffer</span>
+            <span class="n">cx</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">cx_key</span><span class="p">,</span> <span class="n">counterexamples</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">batch_size_counterx</span><span class="p">,),</span> <span class="n">replace</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="n">cx_samples</span> <span class="o">=</span> <span class="n">cx</span><span class="p">[:,</span> <span class="p">:</span><span class="o">-</span><span class="mi">3</span><span class="p">]</span>
+
+            <span class="c1"># Determine which counterexamples belong to which categories</span>
+            <span class="n">cx_bool_init</span> <span class="o">=</span> <span class="n">cx</span><span class="p">[:,</span> <span class="o">-</span><span class="mi">2</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span>
+            <span class="n">cx_bool_unsafe</span> <span class="o">=</span> <span class="n">cx</span><span class="p">[:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span>
+            <span class="n">cx_bool_decrease</span> <span class="o">=</span> <span class="n">cx</span><span class="p">[:,</span> <span class="o">-</span><span class="mi">3</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># No counterexamples in the buffer yet (e.g., in first iteration)</span>
+            <span class="n">cx_samples</span> <span class="o">=</span> <span class="n">cx_bool_init</span> <span class="o">=</span> <span class="n">cx_bool_unsafe</span> <span class="o">=</span> <span class="n">cx_bool_decrease</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="c1"># Sample from each region of interest</span>
+        <span class="n">samples_init</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">init_space</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="n">rng</span><span class="o">=</span><span class="n">init_key</span><span class="p">,</span> <span class="n">N</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">num_samples_init</span><span class="p">)</span>
+        <span class="n">samples_unsafe</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">unsafe_space</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="n">rng</span><span class="o">=</span><span class="n">unsafe_key</span><span class="p">,</span> <span class="n">N</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">num_samples_unsafe</span><span class="p">)</span>
+        <span class="n">samples_target</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">target_space</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="n">rng</span><span class="o">=</span><span class="n">target_key</span><span class="p">,</span> <span class="n">N</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">num_samples_target</span><span class="p">)</span>
+        <span class="n">samples_decrease</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">state_space</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="n">rng</span><span class="o">=</span><span class="n">decrease_key</span><span class="p">,</span> <span class="n">N</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">num_samples_decrease</span><span class="p">)</span>
+
+        <span class="c1"># Exclude samples from target set</span>
+        <span class="n">samples_decrease_bool_not_targetUnsafe</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">target_space</span><span class="o">.</span><span class="n">jax_not_contains</span><span class="p">(</span><span class="n">samples_decrease</span><span class="p">)</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">loss_fun</span><span class="p">(</span><span class="n">certificate_params</span><span class="p">,</span> <span class="n">policy_params</span><span class="p">):</span>
+
+            <span class="c1"># Small epsilon used in the initial/unsafe loss terms</span>
+            <span class="n">EPS_init</span> <span class="o">=</span> <span class="mf">0.1</span>
+            <span class="n">EPS_unsafe</span> <span class="o">=</span> <span class="mf">0.1</span>
+            <span class="n">EPS_decrease</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">EPS_decrease</span>
+
+            <span class="c1"># Compute Lipschitz coefficients.</span>
+            <span class="n">lip_certificate</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">lipschitz_coeff</span><span class="p">(</span><span class="n">certificate_params</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">weighted</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cplip</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">linfty</span><span class="p">)</span>
+            <span class="n">lip_policy</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">lipschitz_coeff</span><span class="p">(</span><span class="n">policy_params</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">weighted</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cplip</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">linfty</span><span class="p">)</span>
+            <span class="n">lip_policy</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">lip_policy</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_lip_policy</span><span class="p">)</span>
+
+            <span class="c1"># Calculate K factor</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">linfty</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">split_lip</span><span class="p">:</span>
+                <span class="n">K</span> <span class="o">=</span> <span class="n">lip_certificate</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">lipschitz_f_linfty_A</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">lipschitz_f_linfty_B</span> <span class="o">*</span> <span class="n">lip_policy</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">split_lip</span><span class="p">:</span>
+                <span class="n">K</span> <span class="o">=</span> <span class="n">lip_certificate</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">lipschitz_f_l1_A</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">lipschitz_f_l1_B</span> <span class="o">*</span> <span class="n">lip_policy</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">linfty</span><span class="p">:</span>
+                <span class="n">K</span> <span class="o">=</span> <span class="n">lip_certificate</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">lipschitz_f_linfty</span> <span class="o">*</span> <span class="p">(</span><span class="n">lip_policy</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">K</span> <span class="o">=</span> <span class="n">lip_certificate</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">lipschitz_f_l1</span> <span class="o">*</span> <span class="p">(</span><span class="n">lip_policy</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+
+            <span class="c1">#####</span>
+
+            <span class="c1"># Compute certificate values in each of the relevant state sets</span>
+            <span class="n">V_init</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ravel</span><span class="p">(</span><span class="n">V_state</span><span class="o">.</span><span class="n">apply_fn</span><span class="p">(</span><span class="n">certificate_params</span><span class="p">,</span> <span class="n">samples_init</span><span class="p">))</span>
+            <span class="n">V_unsafe</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ravel</span><span class="p">(</span><span class="n">V_state</span><span class="o">.</span><span class="n">apply_fn</span><span class="p">(</span><span class="n">certificate_params</span><span class="p">,</span> <span class="n">samples_unsafe</span><span class="p">))</span>
+            <span class="n">V_target</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ravel</span><span class="p">(</span><span class="n">V_state</span><span class="o">.</span><span class="n">apply_fn</span><span class="p">(</span><span class="n">certificate_params</span><span class="p">,</span> <span class="n">samples_target</span><span class="p">))</span>
+            <span class="n">V_decrease</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ravel</span><span class="p">(</span><span class="n">V_state</span><span class="o">.</span><span class="n">apply_fn</span><span class="p">(</span><span class="n">certificate_params</span><span class="p">,</span> <span class="n">samples_decrease</span><span class="p">))</span>
+
+            <span class="c1"># Loss in each initial/unsafe state</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">exp_certificate</span><span class="p">:</span>
+                <span class="n">losses_init</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">V_init</span> <span class="o">+</span> <span class="n">EPS_init</span><span class="p">)</span>
+                <span class="n">losses_unsafe</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span> <span class="n">jnp</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">probability_bound</span><span class="p">)</span> <span class="o">-</span> <span class="n">V_unsafe</span> <span class="o">+</span> <span class="n">EPS_unsafe</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">losses_init</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">V_init</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">EPS_init</span><span class="p">)</span>
+                <span class="n">losses_unsafe</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">probability_bound</span><span class="p">)</span> <span class="o">-</span> <span class="n">V_unsafe</span> <span class="o">+</span> <span class="n">EPS_unsafe</span><span class="p">)</span>
+
+            <span class="c1"># Loss for expected decrease condition</span>
+            <span class="n">expDecr_keys</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">noise_key</span><span class="p">,</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_samples_decrease</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">N_expectation</span><span class="p">))</span>
+            <span class="n">actions</span> <span class="o">=</span> <span class="n">Policy_state</span><span class="o">.</span><span class="n">apply_fn</span><span class="p">(</span><span class="n">policy_params</span><span class="p">,</span> <span class="n">samples_decrease</span><span class="p">)</span>
+            <span class="n">V_expected</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss_exp_decrease_vmap</span><span class="p">(</span><span class="n">V_state</span><span class="p">,</span> <span class="n">certificate_params</span><span class="p">,</span> <span class="n">samples_decrease</span><span class="p">,</span> <span class="n">actions</span><span class="p">,</span>
+                                                     <span class="n">expDecr_keys</span><span class="p">,</span> <span class="n">probability_bound</span><span class="p">)</span>
+
+            <span class="c1"># Compute E[V(x+)] - V(x), approximated over finite number of noise samples</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">exp_certificate</span><span class="p">:</span>
+                <span class="n">Vdiffs</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">V_expected</span> <span class="o">-</span> <span class="n">jnp</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">V_decrease</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="o">-</span> <span class="n">jnp</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">probability_bound</span><span class="p">))</span> <span class="o">+</span> <span class="n">mesh_loss</span> <span class="o">*</span> <span class="p">(</span><span class="n">K</span> <span class="o">+</span> <span class="n">lip_certificate</span><span class="p">)</span> <span class="o">+</span> <span class="n">EPS_decrease</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">Vdiffs</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">V_expected</span> <span class="o">-</span> <span class="n">jnp</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">V_decrease</span><span class="p">,</span> <span class="mi">3</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">probability_bound</span><span class="p">))</span> <span class="o">+</span> <span class="n">mesh_loss</span> <span class="o">*</span> <span class="p">(</span><span class="n">K</span> <span class="o">+</span> <span class="n">lip_certificate</span><span class="p">)</span> <span class="o">+</span> <span class="n">EPS_decrease</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+            <span class="c1"># Determine in which states the expected decrease condition actually applies</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">exp_certificate</span><span class="p">:</span>
+                <span class="n">V_decrease_below_thresh</span> <span class="o">=</span> <span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">stop_gradient</span><span class="p">(</span><span class="n">V_decrease</span> <span class="o">-</span> <span class="n">mesh_loss</span> <span class="o">*</span> <span class="n">lip_certificate</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">-</span> <span class="n">jnp</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">probability_bound</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">V_decrease_below_thresh</span> <span class="o">=</span> <span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">stop_gradient</span><span class="p">(</span><span class="n">V_decrease</span> <span class="o">-</span> <span class="n">mesh_loss</span> <span class="o">*</span> <span class="n">lip_certificate</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">2</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">probability_bound</span><span class="p">))</span>
+
+            <span class="c1"># Restrict to the expected decrease samples only</span>
+            <span class="n">Vdiffs_trim</span> <span class="o">=</span> <span class="n">samples_decrease_bool_not_targetUnsafe</span> <span class="o">*</span> <span class="n">V_decrease_below_thresh</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ravel</span><span class="p">(</span><span class="n">Vdiffs</span><span class="p">)</span>
+
+            <span class="c1">#####</span>
+
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">counterexamples</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="c1"># Certificate values in all counterexample states</span>
+                <span class="n">V_cx</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ravel</span><span class="p">(</span><span class="n">V_state</span><span class="o">.</span><span class="n">apply_fn</span><span class="p">(</span><span class="n">certificate_params</span><span class="p">,</span> <span class="n">cx_samples</span><span class="p">))</span>
+
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">exp_certificate</span><span class="p">:</span>
+                    <span class="n">V_decrease_cx_below_thresh</span> <span class="o">=</span> <span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">stop_gradient</span><span class="p">(</span><span class="n">V_cx</span> <span class="o">-</span> <span class="n">mesh_loss</span> <span class="o">*</span> <span class="n">lip_certificate</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">-</span> <span class="n">jnp</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">probability_bound</span><span class="p">))</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">V_decrease_cx_below_thresh</span> <span class="o">=</span> <span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">lax</span><span class="o">.</span><span class="n">stop_gradient</span><span class="p">(</span><span class="n">V_cx</span> <span class="o">-</span> <span class="n">mesh_loss</span> <span class="o">*</span> <span class="n">lip_certificate</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">2</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">probability_bound</span><span class="p">))</span>
+
+                <span class="c1"># Add initial/unsafe state counterexample loss</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">exp_certificate</span><span class="p">:</span>
+                    <span class="n">losses_init_cx</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">V_cx</span> <span class="o">+</span> <span class="n">EPS_init</span><span class="p">)</span>
+                    <span class="n">losses_unsafe_cx</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span> <span class="n">jnp</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">probability_bound</span><span class="p">)</span> <span class="o">-</span> <span class="n">V_cx</span> <span class="o">+</span> <span class="n">EPS_unsafe</span><span class="p">)</span>
+                    <span class="n">loss_init</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">losses_init</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span> <span class="n">jnp</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">cx_bool_init</span> <span class="o">*</span> <span class="n">losses_init_cx</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+                    <span class="n">loss_unsafe</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span> <span class="o">/</span> <span class="n">jnp</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">probability_bound</span><span class="p">)</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">losses_unsafe</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span> <span class="n">jnp</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">cx_bool_unsafe</span> <span class="o">*</span> <span class="n">losses_unsafe_cx</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">losses_init_cx</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">V_cx</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">EPS_init</span><span class="p">)</span>
+                    <span class="n">losses_unsafe_cx</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">probability_bound</span><span class="p">)</span> <span class="o">-</span> <span class="n">V_cx</span> <span class="o">+</span> <span class="n">EPS_unsafe</span><span class="p">)</span>
+                    <span class="n">loss_init</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">losses_init</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span> <span class="n">jnp</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">cx_bool_init</span> <span class="o">*</span> <span class="n">losses_init_cx</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+                    <span class="n">loss_unsafe</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">probability_bound</span><span class="p">)</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">losses_unsafe</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span> <span class="n">jnp</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">cx_bool_unsafe</span> <span class="o">*</span> <span class="n">losses_unsafe_cx</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+
+                <span class="c1"># Add expected decrease loss</span>
+                <span class="n">expDecr_keys_cx</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">noise_key</span><span class="p">,</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">batch_size_counterx</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">N_expectation</span><span class="p">))</span>
+                <span class="n">actions_cx</span> <span class="o">=</span> <span class="n">Policy_state</span><span class="o">.</span><span class="n">apply_fn</span><span class="p">(</span><span class="n">policy_params</span><span class="p">,</span> <span class="n">cx_samples</span><span class="p">)</span>
+                <span class="n">V_expected</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss_exp_decrease_vmap</span><span class="p">(</span><span class="n">V_state</span><span class="p">,</span> <span class="n">certificate_params</span><span class="p">,</span> <span class="n">cx_samples</span><span class="p">,</span> <span class="n">actions_cx</span><span class="p">,</span>
+                                                         <span class="n">expDecr_keys_cx</span><span class="p">,</span> <span class="n">probability_bound</span><span class="p">)</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">exp_certificate</span><span class="p">:</span>
+                    <span class="n">Vdiffs_cx</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">V_expected</span> <span class="o">-</span> <span class="n">jnp</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">V_cx</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="o">-</span> <span class="n">jnp</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">probability_bound</span><span class="p">))</span> <span class="o">+</span> <span class="n">mesh_loss</span> <span class="o">*</span> <span class="p">(</span><span class="n">K</span> <span class="o">+</span> <span class="n">lip_certificate</span><span class="p">)</span> <span class="o">+</span> <span class="n">EPS_decrease</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">Vdiffs_cx</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">V_expected</span> <span class="o">-</span> <span class="n">jnp</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">V_cx</span><span class="p">,</span> <span class="mi">3</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">probability_bound</span><span class="p">))</span> <span class="o">+</span> <span class="n">mesh_loss</span> <span class="o">*</span> <span class="p">(</span><span class="n">K</span> <span class="o">+</span> <span class="n">lip_certificate</span><span class="p">)</span> <span class="o">+</span> <span class="n">EPS_decrease</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+                <span class="n">Vdiffs_cx_trim</span> <span class="o">=</span> <span class="n">cx_bool_decrease</span> <span class="o">*</span> <span class="n">V_decrease_cx_below_thresh</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ravel</span><span class="p">(</span><span class="n">Vdiffs_cx</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss_decr_squared</span><span class="p">:</span>
+                    <span class="n">loss_exp_decrease_mean</span> <span class="o">=</span> <span class="n">expDecr_multiplier</span> <span class="o">*</span> <span class="p">(</span>
+                            <span class="n">jnp</span><span class="o">.</span><span class="n">sqrt</span><span class="p">((</span><span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">Vdiffs_trim</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">Vdiffs_cx_trim</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span> \
+                                     <span class="o">/</span> <span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">samples_decrease_bool_not_targetUnsafe</span> <span class="o">*</span> <span class="n">V_decrease_below_thresh</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">cx_bool_decrease</span> <span class="o">*</span> <span class="n">V_decrease_cx_below_thresh</span><span class="p">,</span>
+                                                                                                                                    <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="mf">1e-4</span><span class="p">)</span> <span class="o">+</span> <span class="mf">1e-4</span><span class="p">)</span> <span class="o">-</span> <span class="mf">1e-2</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">loss_exp_decrease_mean</span> <span class="o">=</span> <span class="n">expDecr_multiplier</span> <span class="o">*</span> <span class="p">(</span>
+                            <span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">Vdiffs_trim</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">Vdiffs_cx_trim</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span> \
+                            <span class="o">/</span> <span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">samples_decrease_bool_not_targetUnsafe</span> <span class="o">*</span> <span class="n">V_decrease_below_thresh</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">cx_bool_decrease</span> <span class="o">*</span> <span class="n">V_decrease_cx_below_thresh</span><span class="p">,</span>
+                                                                                                                           <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="mf">1e-4</span><span class="p">))</span>
+
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss_decr_max</span><span class="p">:</span>
+                    <span class="n">loss_exp_decrease_max</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">Vdiffs_trim</span><span class="p">),</span> <span class="n">jnp</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">Vdiffs_cx_trim</span><span class="p">))</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">loss_exp_decrease_max</span> <span class="o">=</span> <span class="mi">0</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Add initial/unsafe state counterexample loss</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">exp_certificate</span><span class="p">:</span>
+                    <span class="n">f_unsafe</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span> <span class="o">/</span> <span class="n">jnp</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">probability_bound</span><span class="p">)</span>
+
+                    <span class="n">loss_init</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">losses_init</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                    <span class="n">loss_unsafe</span> <span class="o">=</span> <span class="n">f_unsafe</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">losses_unsafe</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">f_unsafe</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">probability_bound</span><span class="p">)</span>
+
+                    <span class="n">loss_init</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">losses_init</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                    <span class="n">loss_unsafe</span> <span class="o">=</span> <span class="n">f_unsafe</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">losses_unsafe</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss_decr_squared</span><span class="p">:</span>
+                    <span class="n">loss_exp_decrease_mean</span> <span class="o">=</span> <span class="n">expDecr_multiplier</span> <span class="o">*</span> <span class="p">(</span>
+                            <span class="n">jnp</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">Vdiffs_trim</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">samples_decrease_bool_not_targetUnsafe</span> <span class="o">*</span> <span class="n">V_decrease_below_thresh</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="mf">1e-4</span><span class="p">)</span> <span class="o">+</span> <span class="mf">1e-4</span><span class="p">)</span> <span class="o">-</span> <span class="mf">1e-3</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">loss_exp_decrease_mean</span> <span class="o">=</span> <span class="n">expDecr_multiplier</span> <span class="o">*</span> <span class="p">(</span>
+                            <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">Vdiffs_trim</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">samples_decrease_bool_not_targetUnsafe</span> <span class="o">*</span> <span class="n">V_decrease_below_thresh</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="mf">1e-4</span><span class="p">))</span>
+
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss_decr_max</span><span class="p">:</span>
+                    <span class="n">loss_exp_decrease_max</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">Vdiffs_trim</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">loss_exp_decrease_max</span> <span class="o">=</span> <span class="mi">0</span>
+
+            <span class="c1">#####</span>
+
+            <span class="c1"># Loss to promote low Lipschitz constant</span>
+            <span class="n">loss_lipschitz</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lambda_lipschitz</span> <span class="o">*</span> <span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">lip_certificate</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_lip_certificate</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span>
+                                                      <span class="n">jnp</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">lip_policy</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_lip_policy</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+
+            <span class="c1"># Auxiliary losses</span>
+            <span class="n">loss_min_target</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">V_target</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">glob_min</span><span class="p">)</span>
+            <span class="n">loss_min_init</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">V_target</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">-</span> <span class="n">jnp</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">V_init</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+            <span class="n">loss_min_unsafe</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">V_target</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">-</span> <span class="n">jnp</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">V_unsafe</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+            <span class="n">loss_aux</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auxiliary_loss</span> <span class="o">*</span> <span class="p">(</span><span class="n">loss_min_target</span> <span class="o">+</span> <span class="n">loss_min_init</span> <span class="o">+</span> <span class="n">loss_min_unsafe</span><span class="p">)</span>
+
+            <span class="c1"># Define total loss</span>
+            <span class="n">loss_total</span> <span class="o">=</span> <span class="p">(</span><span class="n">loss_init</span> <span class="o">+</span> <span class="n">loss_unsafe</span> <span class="o">+</span> <span class="n">loss_exp_decrease_mean</span> <span class="o">+</span> <span class="n">loss_exp_decrease_max</span> <span class="o">+</span> <span class="n">loss_lipschitz</span> <span class="o">+</span> <span class="n">loss_aux</span><span class="p">)</span>
+
+            <span class="n">infos</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;0. total&#39;</span><span class="p">:</span> <span class="n">loss_total</span><span class="p">,</span>
+                <span class="s1">&#39;1. init&#39;</span><span class="p">:</span> <span class="n">loss_init</span><span class="p">,</span>
+                <span class="s1">&#39;2. unsafe&#39;</span><span class="p">:</span> <span class="n">loss_unsafe</span><span class="p">,</span>
+                <span class="s1">&#39;3. expDecrease_mean&#39;</span><span class="p">:</span> <span class="n">loss_exp_decrease_mean</span><span class="p">,</span>
+                <span class="s1">&#39;4. expDecrease_max&#39;</span><span class="p">:</span> <span class="n">loss_exp_decrease_max</span><span class="p">,</span>
+                <span class="s1">&#39;5. loss_lipschitz&#39;</span><span class="p">:</span> <span class="n">loss_lipschitz</span><span class="p">,</span>
+            <span class="p">}</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">auxiliary_loss</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">infos</span><span class="p">[</span><span class="s1">&#39;8. loss auxiliary&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">loss_aux</span>
+
+            <span class="k">return</span> <span class="n">loss_total</span><span class="p">,</span> <span class="n">infos</span>
+
+        <span class="c1"># Compute gradients</span>
+        <span class="n">loss_grad_fun</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">value_and_grad</span><span class="p">(</span><span class="n">loss_fun</span><span class="p">,</span> <span class="n">argnums</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">has_aux</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="p">(</span><span class="n">loss_val</span><span class="p">,</span> <span class="n">infos</span><span class="p">),</span> <span class="p">(</span><span class="n">V_grads</span><span class="p">,</span> <span class="n">Policy_grads</span><span class="p">)</span> <span class="o">=</span> <span class="n">loss_grad_fun</span><span class="p">(</span><span class="n">V_state</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="n">Policy_state</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+
+        <span class="n">samples_in_batch</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;init&#39;</span><span class="p">:</span> <span class="n">samples_init</span><span class="p">,</span>
+            <span class="s1">&#39;target&#39;</span><span class="p">:</span> <span class="n">samples_target</span><span class="p">,</span>
+            <span class="s1">&#39;unsafe&#39;</span><span class="p">:</span> <span class="n">samples_unsafe</span><span class="p">,</span>
+            <span class="s1">&#39;decrease&#39;</span><span class="p">:</span> <span class="n">samples_decrease</span><span class="p">,</span>
+            <span class="s1">&#39;decrease_not_in_target&#39;</span><span class="p">:</span> <span class="n">samples_decrease_bool_not_targetUnsafe</span><span class="p">,</span>
+            <span class="s1">&#39;counterx&#39;</span><span class="p">:</span> <span class="n">cx_samples</span><span class="p">,</span>
+            <span class="s1">&#39;counterx_init&#39;</span><span class="p">:</span> <span class="n">cx_bool_init</span><span class="p">,</span>
+            <span class="s1">&#39;counterx_unsafe&#39;</span><span class="p">:</span> <span class="n">cx_bool_unsafe</span><span class="p">,</span>
+            <span class="s1">&#39;counterx_decrease&#39;</span><span class="p">:</span> <span class="n">cx_bool_decrease</span>
+        <span class="p">}</span>
+
+        <span class="k">return</span> <span class="n">V_grads</span><span class="p">,</span> <span class="n">Policy_grads</span><span class="p">,</span> <span class="n">infos</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">samples_in_batch</span></div>
+
+
+<div class="viewcode-block" id="Learner.debug_train_step">
+<a class="viewcode-back" href="../../core.html#core.learner.Learner.debug_train_step">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">debug_train_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">samples_in_batch</span><span class="p">,</span> <span class="n">iteration</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Debug function for the training. </span>
+
+<span class="sd">        :param args: Command line arguments given. </span>
+<span class="sd">        :param samples_in_batch: Dictionary, giving the samples used in the batch per category. </span>
+<span class="sd">        :param iteration: Number of the CEGIS iteration.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="n">samples_in_batch</span><span class="p">[</span><span class="s1">&#39;decrease&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">samples_in_batch</span><span class="p">[</span><span class="s1">&#39;decrease&#39;</span><span class="p">][</span><span class="n">samples_in_batch</span><span class="p">[</span><span class="s1">&#39;decrease_not_in_target&#39;</span><span class="p">]]</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Samples used in last train steps:&#39;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;- # init samples: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">samples_in_batch</span><span class="p">[</span><span class="s1">&#39;init&#39;</span><span class="p">])</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;- # unsafe samples: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">samples_in_batch</span><span class="p">[</span><span class="s1">&#39;unsafe&#39;</span><span class="p">])</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;- # target samples: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">samples_in_batch</span><span class="p">[</span><span class="s1">&#39;target&#39;</span><span class="p">])</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;- # decrease samples: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">samples_in_batch</span><span class="p">[</span><span class="s1">&#39;decrease&#39;</span><span class="p">])</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;- # counterexamples: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">samples_in_batch</span><span class="p">[</span><span class="s1">&#39;counterx&#39;</span><span class="p">])</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;-- # cx init: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">samples_in_batch</span><span class="p">[</span><span class="s1">&#39;counterx&#39;</span><span class="p">][</span><span class="n">samples_in_batch</span><span class="p">[</span><span class="s1">&#39;counterx_init&#39;</span><span class="p">]])</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;-- # cx unsafe: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">samples_in_batch</span><span class="p">[</span><span class="s1">&#39;counterx&#39;</span><span class="p">][</span><span class="n">samples_in_batch</span><span class="p">[</span><span class="s1">&#39;counterx_unsafe&#39;</span><span class="p">]])</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;-- # cx decrease: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">samples_in_batch</span><span class="p">[</span><span class="s1">&#39;counterx&#39;</span><span class="p">][</span><span class="n">samples_in_batch</span><span class="p">[</span><span class="s1">&#39;counterx_decrease&#39;</span><span class="p">]])</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Plot samples used in batch</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;init&#39;</span><span class="p">,</span> <span class="s1">&#39;unsafe&#39;</span><span class="p">,</span> <span class="s1">&#39;target&#39;</span><span class="p">,</span> <span class="s1">&#39;decrease&#39;</span><span class="p">,</span> <span class="s1">&#39;counterx&#39;</span><span class="p">]:</span>
+            <span class="n">filename</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;plots/</span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">start_datetime</span><span class="si">}</span><span class="s2">_train_debug_</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="si">}</span><span class="s2">_iteration=</span><span class="si">{</span><span class="n">iteration</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="n">plot_dataset</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="p">,</span> <span class="n">additional_data</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">samples_in_batch</span><span class="p">[</span><span class="n">s</span><span class="p">]),</span> <span class="n">folder</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">cwd</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="n">filename</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;counterx_init&#39;</span><span class="p">,</span> <span class="s1">&#39;counterx_unsafe&#39;</span><span class="p">,</span> <span class="s1">&#39;counterx_decrease&#39;</span><span class="p">]:</span>
+            <span class="n">filename</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;plots/</span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">start_datetime</span><span class="si">}</span><span class="s2">_train_debug_</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="si">}</span><span class="s2">_iteration=</span><span class="si">{</span><span class="n">iteration</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="n">idxs</span> <span class="o">=</span> <span class="n">samples_in_batch</span><span class="p">[</span><span class="n">s</span><span class="p">]</span>
+            <span class="n">plot_dataset</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="p">,</span> <span class="n">additional_data</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">samples_in_batch</span><span class="p">[</span><span class="s1">&#39;counterx&#39;</span><span class="p">])[</span><span class="n">idxs</span><span class="p">],</span> <span class="n">folder</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">cwd</span><span class="p">,</span>
+                         <span class="n">filename</span><span class="o">=</span><span class="n">filename</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Thom Badings, Wietze Koops, Sebastian Junges, Nils Jansen.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

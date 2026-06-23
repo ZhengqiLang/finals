@@ -1,0 +1,4 @@
+,time [s]
+initialize,0.003417
+pretrain_policy,7.705021
+initialize_CEGIS,0.174378

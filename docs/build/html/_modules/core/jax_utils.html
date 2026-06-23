@@ -1,0 +1,592 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>core.jax_utils &mdash; logRASM v1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=5cb08e4e"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            logRASM
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html">Policy Verification in Stochastic Dynamical Systems Using Logarithmic Neural Certificates</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html#what-does-this-code-do">1. What does this code do?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html#run-from-a-docker-container-preferred">2. Run from a Docker container (preferred)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html#installing-from-source">3. Installing from source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html#running-for-a-single-benchmark-smoke-test">4. Running for a single benchmark (smoke test)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html#reproducing-results-from-the-paper">5. Reproducing results from the paper</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html#training-policies-with-stable-baselines">6. Training policies with Stable-Baselines</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html#overview-of-input-arguments">7. Overview of input arguments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../ReadMe.html#rebuilding-the-docker-container">8. Rebuilding the Docker container</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">Code documentation</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">logRASM</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">core.jax_utils</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for core.jax_utils</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">partial</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callable</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Sequence</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">flax.linen</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nn</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">jax</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">jax.numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">jnp</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">optax</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">orbax.checkpoint</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">flax</span><span class="w"> </span><span class="kn">import</span> <span class="n">struct</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">flax.training.train_state</span><span class="w"> </span><span class="kn">import</span> <span class="n">TrainState</span>
+
+
+<div class="viewcode-block" id="load_policy_config">
+<a class="viewcode-back" href="../../core.html#core.jax_utils.load_policy_config">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_policy_config</span><span class="p">(</span><span class="n">checkpoint_path</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Load the configuration of a saved neural network checkpoint.</span>
+
+<span class="sd">    :param checkpoint_path: file path to a Orbax checkpoint file.</span>
+<span class="sd">    :param key: string &#39;V_config&#39; or &#39;Policy_config&#39;, describing whether the certificate or the policy should be loaded. </span>
+<span class="sd">    :return: dictionary, giving the relevant configuration.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="c1"># First read only the config from the orbax checkpoint</span>
+    <span class="n">orbax_checkpointer</span> <span class="o">=</span> <span class="n">orbax</span><span class="o">.</span><span class="n">checkpoint</span><span class="o">.</span><span class="n">Checkpointer</span><span class="p">(</span><span class="n">orbax</span><span class="o">.</span><span class="n">checkpoint</span><span class="o">.</span><span class="n">PyTreeCheckpointHandler</span><span class="p">())</span>
+    <span class="n">ckpt_restored</span> <span class="o">=</span> <span class="n">orbax_checkpointer</span><span class="o">.</span><span class="n">restore</span><span class="p">(</span><span class="n">checkpoint_path</span><span class="p">)</span>
+    <span class="n">Policy_config</span> <span class="o">=</span> <span class="n">ckpt_restored</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">Policy_config</span></div>
+
+
+
+<div class="viewcode-block" id="create_nn_states">
+<a class="viewcode-back" href="../../core.html#core.jax_utils.create_nn_states">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">create_nn_states</span><span class="p">(</span><span class="n">env</span><span class="p">,</span> <span class="n">Policy_config</span><span class="p">,</span> <span class="n">V_neurons_withOut</span><span class="p">,</span> <span class="n">V_act_fn_withOut</span><span class="p">,</span> <span class="n">pi_neurons_per_layer</span><span class="p">,</span>
+                     <span class="n">Policy_lr</span><span class="o">=</span><span class="mf">5e-5</span><span class="p">,</span> <span class="n">V_lr</span><span class="o">=</span><span class="mf">5e-4</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Create Jax state objects (for both policy and certificate).</span>
+
+<span class="sd">    :param env: Benchmark model.</span>
+<span class="sd">    :param Policy_config: Configuration for policy.</span>
+<span class="sd">    :param V_neurons_withOut: Number of neurons per layer of certificate network (including the output dimension).</span>
+<span class="sd">    :param V_act_fn_withOut: Activation function per layer of certificate network (including the output act. func.).</span>
+<span class="sd">    :param pi_neurons_per_layer: Number of neurons per layer of policy network (excluding the output dimension).</span>
+<span class="sd">    :param Policy_lr: Policy network learning rate. </span>
+<span class="sd">    :param V_lr: Certificate learning rate.</span>
+<span class="sd">    :return:</span>
+<span class="sd">        - V_state: Initialized certificate network </span>
+<span class="sd">        - Policy_state: Initialized policy network</span>
+<span class="sd">        - Policy_config: Configuration for policy.</span>
+<span class="sd">        - Policy_neurons_withOut: Number of neurons per layer of policy network (including the output dimension).</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="c1"># Initialize certificate network</span>
+    <span class="n">certificate_model</span> <span class="o">=</span> <span class="n">MLP</span><span class="p">(</span><span class="n">V_neurons_withOut</span><span class="p">,</span> <span class="n">V_act_fn_withOut</span><span class="p">)</span>
+    <span class="n">V_state</span> <span class="o">=</span> <span class="n">create_train_state</span><span class="p">(</span>
+        <span class="n">model</span><span class="o">=</span><span class="n">certificate_model</span><span class="p">,</span>
+        <span class="n">act_funcs</span><span class="o">=</span><span class="n">V_act_fn_withOut</span><span class="p">,</span>
+        <span class="n">rng</span><span class="o">=</span><span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">PRNGKey</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span>
+        <span class="n">in_dim</span><span class="o">=</span><span class="n">env</span><span class="o">.</span><span class="n">state_dim</span><span class="p">,</span>
+        <span class="n">learning_rate</span><span class="o">=</span><span class="n">V_lr</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Parse policy activation functions (txt -&gt; jax functions)</span>
+    <span class="n">Policy_act_fn_withOut</span> <span class="o">=</span> <span class="n">orbax_parse_activation_fn</span><span class="p">(</span><span class="n">Policy_config</span><span class="p">[</span><span class="s1">&#39;activation_fn&#39;</span><span class="p">])</span>
+    <span class="n">Policy_neurons_withOut</span> <span class="o">=</span> <span class="n">pi_neurons_per_layer</span> <span class="o">+</span> <span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">action_space</span><span class="o">.</span><span class="n">low</span><span class="p">)]</span>
+
+    <span class="c1"># Create policy state object</span>
+    <span class="n">policy_model</span> <span class="o">=</span> <span class="n">MLP</span><span class="p">(</span><span class="n">Policy_neurons_withOut</span><span class="p">,</span> <span class="n">Policy_act_fn_withOut</span><span class="p">)</span>
+    <span class="n">Policy_state</span> <span class="o">=</span> <span class="n">create_train_state</span><span class="p">(</span>
+        <span class="n">model</span><span class="o">=</span><span class="n">policy_model</span><span class="p">,</span>
+        <span class="n">act_funcs</span><span class="o">=</span><span class="n">Policy_act_fn_withOut</span><span class="p">,</span>
+        <span class="n">rng</span><span class="o">=</span><span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">PRNGKey</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span>
+        <span class="n">in_dim</span><span class="o">=</span><span class="n">env</span><span class="o">.</span><span class="n">state_dim</span><span class="p">,</span>
+        <span class="n">learning_rate</span><span class="o">=</span><span class="n">Policy_lr</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">V_state</span><span class="p">,</span> <span class="n">Policy_state</span><span class="p">,</span> <span class="n">Policy_config</span><span class="p">,</span> <span class="n">Policy_neurons_withOut</span></div>
+
+
+
+<div class="viewcode-block" id="orbax_set_config">
+<a class="viewcode-back" href="../../core.html#core.jax_utils.orbax_set_config">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">orbax_set_config</span><span class="p">(</span><span class="n">start_datetime</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">env_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">layout</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">RL_method</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">total_steps</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                     <span class="n">neurons_per_layer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">activation_fn_txt</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Set configuration of Orbax neural network checkpoint. </span>
+
+<span class="sd">    :param start_datetime: Time at which training was started.</span>
+<span class="sd">    :param env_name: Name of the environment.</span>
+<span class="sd">    :param layout: Layout of the environment.</span>
+<span class="sd">    :param seed: Random seed used.</span>
+<span class="sd">    :param RL_method: RL algorithm that was used for the pretraining. </span>
+<span class="sd">    :param total_steps: Number of steps for which the network was (pre)trained. </span>
+<span class="sd">    :param neurons_per_layer: Number of neurons per layer of the network. </span>
+<span class="sd">    :param activation_fn_txt: List of strings describing the activation functions.</span>
+<span class="sd">    :return: configuration dictionary</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="n">config</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;date_created&#39;</span><span class="p">:</span> <span class="n">start_datetime</span><span class="p">,</span>
+        <span class="s1">&#39;env_name&#39;</span><span class="p">:</span> <span class="n">env_name</span><span class="p">,</span>
+        <span class="s1">&#39;layout&#39;</span><span class="p">:</span> <span class="n">layout</span><span class="p">,</span>
+        <span class="s1">&#39;seed&#39;</span><span class="p">:</span> <span class="n">seed</span><span class="p">,</span>
+        <span class="s1">&#39;algorithm&#39;</span><span class="p">:</span> <span class="n">RL_method</span><span class="p">,</span>
+        <span class="s1">&#39;total_steps&#39;</span><span class="p">:</span> <span class="n">total_steps</span><span class="p">,</span>
+        <span class="s1">&#39;neurons_per_layer&#39;</span><span class="p">:</span> <span class="n">neurons_per_layer</span><span class="p">,</span>
+        <span class="s1">&#39;activation_fn&#39;</span><span class="p">:</span> <span class="n">activation_fn_txt</span>
+    <span class="p">}</span>
+
+    <span class="k">return</span> <span class="n">config</span></div>
+
+
+
+<div class="viewcode-block" id="orbax_parse_activation_fn">
+<a class="viewcode-back" href="../../core.html#core.jax_utils.orbax_parse_activation_fn">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">orbax_parse_activation_fn</span><span class="p">(</span><span class="n">activation_fn_txt</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Parse list of activation functions as flax functions.</span>
+
+<span class="sd">    :param activation_fn_txt: List of strings describing the activation functions.</span>
+<span class="sd">    :return: List of flax functions describing the activation functions.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="n">activation_fn</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">activation_fn_txt</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">fn</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">activation_fn_txt</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">fn</span> <span class="o">==</span> <span class="s1">&#39;relu&#39;</span><span class="p">:</span>
+            <span class="n">activation_fn</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">relu</span>
+        <span class="k">elif</span> <span class="n">fn</span> <span class="o">==</span> <span class="s1">&#39;tanh&#39;</span><span class="p">:</span>
+            <span class="n">activation_fn</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">tanh</span>
+        <span class="k">elif</span> <span class="n">fn</span> <span class="o">==</span> <span class="s1">&#39;softplus&#39;</span><span class="p">:</span>
+            <span class="n">activation_fn</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">softplus</span>
+        <span class="k">elif</span> <span class="n">fn</span> <span class="o">==</span> <span class="s1">&#39;None&#39;</span><span class="p">:</span>
+            <span class="n">activation_fn</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;(!!!) Warning: unknown activation function (</span><span class="si">{</span><span class="n">fn</span><span class="si">}</span><span class="s1">) in checkpoint config encountered&#39;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">activation_fn</span></div>
+
+
+
+<div class="viewcode-block" id="create_batches">
+<a class="viewcode-back" href="../../core.html#core.jax_utils.create_batches">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">create_batches</span><span class="p">(</span><span class="n">data_length</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Create batches for the given data and batch size. Returns the start and end indices to iterate over.</span>
+
+<span class="sd">    :param data_length: Total number of data points.</span>
+<span class="sd">    :param batch_size: Number of points per batch.</span>
+<span class="sd">    :return: Each batch is represented by the slice [starts[i]:ends[i]].</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="n">num_batches</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">data_length</span> <span class="o">/</span> <span class="n">batch_size</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+    <span class="n">starts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">num_batches</span><span class="p">)</span> <span class="o">*</span> <span class="n">batch_size</span>
+    <span class="n">ends</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">starts</span> <span class="o">+</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">data_length</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">starts</span><span class="p">,</span> <span class="n">ends</span></div>
+
+
+
+<div class="viewcode-block" id="apply_ibp_rectangular">
+<a class="viewcode-back" href="../../core.html#core.jax_utils.apply_ibp_rectangular">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">apply_ibp_rectangular</span><span class="p">(</span><span class="n">act_fns</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">mean</span><span class="p">,</span> <span class="n">radius</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Implementation of the interval bound propagation (IBP) method from https://arxiv.org/abs/1810.12715.</span>
+<span class="sd">    We use IBP to compute upper and lower bounds for (hyper)rectangular input sets.</span>
+
+<span class="sd">    This function returns the same result as jax_verify.interval_bound_propagation(apply_fn, initial_bounds). However,</span>
+<span class="sd">    the jax_verify version is generally slower, because it is written to handle more general neural networks.</span>
+
+<span class="sd">    :param act_fns: List of flax.nn activation functions.</span>
+<span class="sd">    :param params: Parameter dictionary of the network.</span>
+<span class="sd">    :param mean: 2d array, with each row being an input point of dimension n.</span>
+<span class="sd">    :param radius: 1d array, specifying the radius of the input in every dimension.</span>
+<span class="sd">    :return: lb and ub (both 2d arrays of the same shape as `mean`)</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="c1"># Broadcast radius to match shape of the mean numpy array</span>
+    <span class="n">radius</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">(</span><span class="n">radius</span><span class="p">,</span> <span class="n">mean</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+
+    <span class="c1"># Enumerate over the layers of the network</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">act_fn</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">act_fns</span><span class="p">):</span>
+        <span class="n">layer</span> <span class="o">=</span> <span class="s1">&#39;Dense_&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+
+        <span class="c1"># Compute mean and radius after the current fully connected layer</span>
+        <span class="n">mean</span> <span class="o">=</span> <span class="n">mean</span> <span class="o">@</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;params&#39;</span><span class="p">][</span><span class="n">layer</span><span class="p">][</span><span class="s1">&#39;kernel&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;params&#39;</span><span class="p">][</span><span class="n">layer</span><span class="p">][</span><span class="s1">&#39;bias&#39;</span><span class="p">]</span>
+        <span class="n">radius</span> <span class="o">=</span> <span class="n">radius</span> <span class="o">@</span> <span class="n">jnp</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;params&#39;</span><span class="p">][</span><span class="n">layer</span><span class="p">][</span><span class="s1">&#39;kernel&#39;</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="n">act_fn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Then, apply the activation function and determine the lower and upper bounds</span>
+            <span class="n">lb</span> <span class="o">=</span> <span class="n">act_fn</span><span class="p">(</span><span class="n">mean</span> <span class="o">-</span> <span class="n">radius</span><span class="p">)</span>
+            <span class="n">ub</span> <span class="o">=</span> <span class="n">act_fn</span><span class="p">(</span><span class="n">mean</span> <span class="o">+</span> <span class="n">radius</span><span class="p">)</span>
+
+            <span class="c1"># Use these upper bounds to determine the mean and radius after the layer</span>
+            <span class="n">mean</span> <span class="o">=</span> <span class="p">(</span><span class="n">ub</span> <span class="o">+</span> <span class="n">lb</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
+            <span class="n">radius</span> <span class="o">=</span> <span class="p">(</span><span class="n">ub</span> <span class="o">-</span> <span class="n">lb</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">lb</span> <span class="o">=</span> <span class="n">mean</span> <span class="o">-</span> <span class="n">radius</span>
+            <span class="n">ub</span> <span class="o">=</span> <span class="n">mean</span> <span class="o">+</span> <span class="n">radius</span>
+
+    <span class="k">return</span> <span class="n">lb</span><span class="p">,</span> <span class="n">ub</span></div>
+
+
+
+<div class="viewcode-block" id="AgentState">
+<a class="viewcode-back" href="../../core.html#core.jax_utils.AgentState">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">AgentState</span><span class="p">(</span><span class="n">TrainState</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Class inherited from the TrainState class from flax. </span>
+<span class="sd">    It sets default values for agent functions to make TrainState work in jitted function.</span>
+<span class="sd">    &#39;&#39;&#39;</span>    
+    
+    <span class="n">ibp_fn</span><span class="p">:</span> <span class="n">Callable</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">field</span><span class="p">(</span><span class="n">pytree_node</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="create_train_state">
+<a class="viewcode-back" href="../../core.html#core.jax_utils.create_train_state">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">create_train_state</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">act_funcs</span><span class="p">,</span> <span class="n">rng</span><span class="p">,</span> <span class="n">in_dim</span><span class="p">,</span> <span class="n">learning_rate</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">ema</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Create a flax TrainState object.</span>
+
+<span class="sd">    :param model: MLP object describing number of neurons per layer and the activation functions. </span>
+<span class="sd">    :param act_funcs: List of activation functions (required separately for the IBP function). </span>
+<span class="sd">    :param rng: random number generator object. </span>
+<span class="sd">    :param in_dim: Input dimension of the network.</span>
+<span class="sd">    :param learning_rate: Learning rate. </span>
+<span class="sd">    :param ema: Rate of the EMA (exponential moving average) used in the optimizer. </span>
+<span class="sd">    :param params: Additional parameters to be passed to the (flax) TrainState class.</span>
+<span class="sd">    :return: flax TrainState object.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">if</span> <span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">init</span><span class="p">(</span><span class="n">rng</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ones</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="n">in_dim</span><span class="p">]))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="n">params</span>
+
+    <span class="n">tx</span> <span class="o">=</span> <span class="n">optax</span><span class="o">.</span><span class="n">adam</span><span class="p">(</span><span class="n">learning_rate</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">ema</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">tx</span> <span class="o">=</span> <span class="n">optax</span><span class="o">.</span><span class="n">chain</span><span class="p">(</span><span class="n">tx</span><span class="p">,</span> <span class="n">optax</span><span class="o">.</span><span class="n">ema</span><span class="p">(</span><span class="n">ema</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">AgentState</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">apply_fn</span><span class="o">=</span><span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">apply</span><span class="p">),</span> <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">,</span> <span class="n">tx</span><span class="o">=</span><span class="n">tx</span><span class="p">,</span>
+                             <span class="n">ibp_fn</span><span class="o">=</span><span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">partial</span><span class="p">(</span><span class="n">apply_ibp_rectangular</span><span class="p">,</span> <span class="n">act_funcs</span><span class="p">)))</span></div>
+
+
+
+<div class="viewcode-block" id="lipschitz_coeff">
+<a class="viewcode-back" href="../../core.html#core.jax_utils.lipschitz_coeff">[docs]</a>
+<span class="nd">@partial</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">,</span> <span class="n">static_argnums</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,))</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">lipschitz_coeff</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">weighted</span><span class="p">,</span> <span class="n">CPLip</span><span class="p">,</span> <span class="n">Linfty</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Function to compute Lipschitz constants using the techniques presented in the paper.</span>
+
+<span class="sd">    :param params: Neural network parameters.</span>
+<span class="sd">    :param weighted: If true, use weighted norms.</span>
+<span class="sd">    :param CPLip: If true, use the average activation operators (cplip) improvement.</span>
+<span class="sd">    :param Linfty: If true, use Linfty norm; If false, use L1 norm (currently only L1 norm is used).</span>
+<span class="sd">    :return: Lipschitz constant and list of weights (or None if weighted is False).</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">if</span> <span class="n">Linfty</span><span class="p">:</span>
+        <span class="n">axis</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">axis</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="n">minweight</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="mf">1e-6</span><span class="p">)</span>
+    <span class="n">maxweight</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="mf">1e6</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="n">weighted</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">CPLip</span><span class="p">):</span>
+        <span class="n">L</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="c1"># Compute Lipschitz coefficient by iterating through layers</span>
+        <span class="k">for</span> <span class="n">layer</span> <span class="ow">in</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="c1"># Involve only the &#39;kernel&#39; dictionaries of each layer in the network, which are the weight matrices</span>
+            <span class="k">if</span> <span class="s2">&quot;kernel&quot;</span> <span class="ow">in</span> <span class="n">layer</span><span class="p">:</span>
+                <span class="n">L</span> <span class="o">*=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">layer</span><span class="p">[</span><span class="s2">&quot;kernel&quot;</span><span class="p">]),</span> <span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">))</span>
+
+    <span class="k">elif</span> <span class="p">(</span><span class="ow">not</span> <span class="n">weighted</span> <span class="ow">and</span> <span class="n">CPLip</span><span class="p">):</span>
+        <span class="n">L</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">matrices</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">layer</span> <span class="ow">in</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="c1"># Collect all weight matrices of the network</span>
+            <span class="k">if</span> <span class="s2">&quot;kernel&quot;</span> <span class="ow">in</span> <span class="n">layer</span><span class="p">:</span>
+                <span class="n">matrices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">layer</span><span class="p">[</span><span class="s2">&quot;kernel&quot;</span><span class="p">])</span>
+
+        <span class="n">nmatrices</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">matrices</span><span class="p">)</span>
+        <span class="c1"># Create a list with all products of consecutive weight matrices</span>
+        <span class="c1"># products[i][j] is the matrix product matrices[i + j] ... matrices[j]</span>
+        <span class="n">products</span> <span class="o">=</span> <span class="p">[</span><span class="n">matrices</span><span class="p">]</span>
+        <span class="n">prodnorms</span> <span class="o">=</span> <span class="p">[[</span><span class="n">jnp</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">mat</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">))</span> <span class="k">for</span> <span class="n">mat</span> <span class="ow">in</span> <span class="n">matrices</span><span class="p">]]</span>
+        <span class="k">for</span> <span class="n">nprods</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">nmatrices</span><span class="p">):</span>
+            <span class="n">prod_list</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nmatrices</span> <span class="o">-</span> <span class="n">nprods</span><span class="p">):</span>
+                <span class="n">prod_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">products</span><span class="p">[</span><span class="n">nprods</span> <span class="o">-</span> <span class="mi">1</span><span class="p">][</span><span class="n">idx</span><span class="p">],</span> <span class="n">matrices</span><span class="p">[</span><span class="n">idx</span> <span class="o">+</span> <span class="n">nprods</span><span class="p">]))</span>
+            <span class="n">products</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">prod_list</span><span class="p">)</span>
+            <span class="n">prodnorms</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">jnp</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">mat</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">))</span> <span class="k">for</span> <span class="n">mat</span> <span class="ow">in</span> <span class="n">prod_list</span><span class="p">])</span>
+
+        <span class="n">ncombs</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="p">(</span><span class="n">nmatrices</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">ncombs</span><span class="p">):</span>
+            <span class="c1"># To iterate over all possible ways of putting norms or products between the layers, </span>
+            <span class="c1">#  interpret idx as binary number of length (nmatrices - 1),</span>
+            <span class="c1"># where the jth bit determines whether to put a norm or a product between layers j and j+1</span>
+            <span class="c1"># We use that the (nmatrices - 1)th bit of such number is always 0, which implies that</span>
+            <span class="c1"># each layer is taken into account for each term in the sum. </span>
+            <span class="n">jprev</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">Lloc</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">jcur</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nmatrices</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">idx</span> <span class="o">&amp;</span> <span class="p">(</span><span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="n">jcur</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span> 
+                    <span class="n">Lloc</span> <span class="o">*=</span> <span class="n">prodnorms</span><span class="p">[</span><span class="n">jcur</span> <span class="o">-</span> <span class="n">jprev</span><span class="p">][</span><span class="n">jprev</span><span class="p">]</span>
+                    <span class="n">jprev</span> <span class="o">=</span> <span class="n">jcur</span> <span class="o">+</span> <span class="mi">1</span>
+
+            <span class="n">L</span> <span class="o">+=</span> <span class="n">Lloc</span> <span class="o">/</span> <span class="n">ncombs</span>
+
+
+    <span class="k">elif</span> <span class="p">(</span><span class="n">weighted</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">CPLip</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">Linfty</span><span class="p">):</span>
+        <span class="n">L</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">matrices</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">layer</span> <span class="ow">in</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="c1"># Collect all weight matrices of the network</span>
+            <span class="k">if</span> <span class="s2">&quot;kernel&quot;</span> <span class="ow">in</span> <span class="n">layer</span><span class="p">:</span>
+                <span class="n">matrices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">layer</span><span class="p">[</span><span class="s2">&quot;kernel&quot;</span><span class="p">])</span>
+        <span class="n">matrices</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
+
+        <span class="n">weights</span> <span class="o">=</span> <span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">matrices</span><span class="p">[</span><span class="mi">0</span><span class="p">])[</span><span class="mi">1</span><span class="p">])]</span>
+        <span class="k">for</span> <span class="n">mat</span> <span class="ow">in</span> <span class="n">matrices</span><span class="p">:</span>
+            <span class="n">colsums</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">mat</span><span class="p">),</span> <span class="n">weights</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">lip</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">colsums</span><span class="p">),</span> <span class="n">minweight</span><span class="p">)</span>
+            <span class="n">weights</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">colsums</span> <span class="o">/</span> <span class="n">lip</span><span class="p">,</span> <span class="n">minweight</span><span class="p">))</span>
+            <span class="n">L</span> <span class="o">*=</span> <span class="n">lip</span>
+
+    <span class="k">elif</span> <span class="p">(</span><span class="n">weighted</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">CPLip</span> <span class="ow">and</span> <span class="n">Linfty</span><span class="p">):</span>
+        <span class="n">L</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">matrices</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">layer</span> <span class="ow">in</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="c1"># Collect all weight matrices of the network</span>
+            <span class="k">if</span> <span class="s2">&quot;kernel&quot;</span> <span class="ow">in</span> <span class="n">layer</span><span class="p">:</span>
+                <span class="n">matrices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">layer</span><span class="p">[</span><span class="s2">&quot;kernel&quot;</span><span class="p">])</span>
+
+        <span class="n">weights</span> <span class="o">=</span> <span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">matrices</span><span class="p">[</span><span class="mi">0</span><span class="p">])[</span><span class="mi">0</span><span class="p">])]</span>
+        <span class="k">for</span> <span class="n">mat</span> <span class="ow">in</span> <span class="n">matrices</span><span class="p">:</span>
+            <span class="n">rowsums</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">mat</span><span class="p">),</span> <span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">weights</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][:,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">lip</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">rowsums</span><span class="p">)</span>
+            <span class="n">weights</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">lip</span> <span class="o">/</span> <span class="n">rowsums</span><span class="p">,</span> <span class="n">maxweight</span><span class="p">))</span>
+            <span class="n">L</span> <span class="o">*=</span> <span class="n">lip</span>
+
+    <span class="k">elif</span> <span class="p">(</span><span class="n">weighted</span> <span class="ow">and</span> <span class="n">CPLip</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">Linfty</span><span class="p">):</span>
+        <span class="n">L</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">matrices</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">layer</span> <span class="ow">in</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="c1"># Collect all weight matrices of the network</span>
+            <span class="k">if</span> <span class="s2">&quot;kernel&quot;</span> <span class="ow">in</span> <span class="n">layer</span><span class="p">:</span>
+                <span class="n">matrices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">layer</span><span class="p">[</span><span class="s2">&quot;kernel&quot;</span><span class="p">])</span>
+        <span class="n">matrices</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
+
+        <span class="n">weights</span> <span class="o">=</span> <span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">matrices</span><span class="p">[</span><span class="mi">0</span><span class="p">])[</span><span class="mi">1</span><span class="p">])]</span>
+        <span class="k">for</span> <span class="n">mat</span> <span class="ow">in</span> <span class="n">matrices</span><span class="p">:</span>
+            <span class="n">colsums</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">mat</span><span class="p">),</span> <span class="n">weights</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">lip</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">colsums</span><span class="p">),</span> <span class="n">minweight</span><span class="p">)</span>
+            <span class="n">weights</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">colsums</span> <span class="o">/</span> <span class="n">lip</span><span class="p">,</span> <span class="n">minweight</span><span class="p">))</span>
+
+        <span class="n">matrices</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
+        <span class="n">nmatrices</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">matrices</span><span class="p">)</span>
+        <span class="c1"># Create a list with all products of consecutive weight matrices</span>
+        <span class="c1"># products[i][j] is the matrix product matrices[i + j] ... matrices[j]</span>
+        <span class="n">products</span> <span class="o">=</span> <span class="p">[</span><span class="n">matrices</span><span class="p">]</span>
+        <span class="n">prodnorms</span> <span class="o">=</span> <span class="p">[[</span><span class="n">jnp</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">matrices</span><span class="p">[</span><span class="n">idx</span><span class="p">]),</span>
+                                                                <span class="n">weights</span><span class="p">[</span><span class="o">-</span><span class="p">(</span><span class="n">idx</span> <span class="o">+</span> <span class="mi">2</span><span class="p">)][</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span>
+                                           <span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">weights</span><span class="p">[</span><span class="o">-</span><span class="p">(</span><span class="n">idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)]))</span>
+                      <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nmatrices</span><span class="p">)]]</span>
+        <span class="k">for</span> <span class="n">nprods</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">nmatrices</span><span class="p">):</span>
+            <span class="n">prod_list</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nmatrices</span> <span class="o">-</span> <span class="n">nprods</span><span class="p">):</span>
+                <span class="n">prod_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">products</span><span class="p">[</span><span class="n">nprods</span> <span class="o">-</span> <span class="mi">1</span><span class="p">][</span><span class="n">idx</span><span class="p">],</span> <span class="n">matrices</span><span class="p">[</span><span class="n">idx</span> <span class="o">+</span> <span class="n">nprods</span><span class="p">]))</span>
+            <span class="n">products</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">prod_list</span><span class="p">)</span>
+            <span class="n">prodnorms</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">jnp</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">prod_list</span><span class="p">[</span><span class="n">idx</span><span class="p">]),</span>
+                                                                        <span class="n">weights</span><span class="p">[</span><span class="o">-</span><span class="p">(</span><span class="n">idx</span> <span class="o">+</span> <span class="n">nprods</span> <span class="o">+</span> <span class="mi">2</span><span class="p">)][</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]),</span>
+                                                           <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span>
+                                                   <span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">weights</span><span class="p">[</span><span class="o">-</span><span class="p">(</span><span class="n">idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)]))</span>
+                              <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nmatrices</span> <span class="o">-</span> <span class="n">nprods</span><span class="p">)])</span>
+
+        <span class="n">ncombs</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="p">(</span><span class="n">nmatrices</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">ncombs</span><span class="p">):</span>
+            <span class="c1"># To iterate over all possible ways of putting norms or products between the layers, </span>
+            <span class="c1">#  interpret idx as binary number of length (nmatrices - 1),</span>
+            <span class="c1"># where the jth bit determines whether to put a norm or a product between layers j and j+1</span>
+            <span class="c1"># We use that the (nmatrices - 1)th bit of such number is always 0, which implies that</span>
+            <span class="c1"># each layer is taken into account for each term in the sum. </span>
+            <span class="n">jprev</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">Lloc</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">jcur</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nmatrices</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">idx</span> <span class="o">&amp;</span> <span class="p">(</span><span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="n">jcur</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span> 
+                    <span class="n">Lloc</span> <span class="o">*=</span> <span class="n">prodnorms</span><span class="p">[</span><span class="n">jcur</span> <span class="o">-</span> <span class="n">jprev</span><span class="p">][</span><span class="n">jprev</span><span class="p">]</span>
+                    <span class="n">jprev</span> <span class="o">=</span> <span class="n">jcur</span> <span class="o">+</span> <span class="mi">1</span>
+
+            <span class="n">L</span> <span class="o">+=</span> <span class="n">Lloc</span> <span class="o">/</span> <span class="n">ncombs</span>
+
+    <span class="k">elif</span> <span class="p">(</span><span class="n">weighted</span> <span class="ow">and</span> <span class="n">CPLip</span> <span class="ow">and</span> <span class="n">Linfty</span><span class="p">):</span>
+        <span class="n">L</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">matrices</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">layer</span> <span class="ow">in</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="c1"># Collect all weight matrices of the network</span>
+            <span class="k">if</span> <span class="s2">&quot;kernel&quot;</span> <span class="ow">in</span> <span class="n">layer</span><span class="p">:</span>
+                <span class="n">matrices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">layer</span><span class="p">[</span><span class="s2">&quot;kernel&quot;</span><span class="p">])</span>
+
+        <span class="n">weights</span> <span class="o">=</span> <span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">matrices</span><span class="p">[</span><span class="mi">0</span><span class="p">])[</span><span class="mi">0</span><span class="p">])]</span>
+        <span class="k">for</span> <span class="n">mat</span> <span class="ow">in</span> <span class="n">matrices</span><span class="p">:</span>
+            <span class="n">rowsums</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">mat</span><span class="p">),</span> <span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">weights</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][:,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">lip</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">rowsums</span><span class="p">)</span>
+            <span class="n">weights</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">lip</span> <span class="o">/</span> <span class="n">rowsums</span><span class="p">,</span> <span class="n">maxweight</span><span class="p">))</span>
+        <span class="n">weights</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
+
+        <span class="n">nmatrices</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">matrices</span><span class="p">)</span>
+        <span class="c1"># Create a list with all products of consecutive weight matrices</span>
+        <span class="c1"># products[i][j] is the matrix product matrices[i + j] ... matrices[j]</span>
+        <span class="n">products</span> <span class="o">=</span> <span class="p">[</span><span class="n">matrices</span><span class="p">]</span>
+        <span class="n">prodnorms</span> <span class="o">=</span> <span class="p">[[</span><span class="n">jnp</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">matrices</span><span class="p">[</span><span class="n">idx</span><span class="p">]),</span>
+                                                                <span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">weights</span><span class="p">[</span><span class="o">-</span><span class="p">(</span><span class="n">idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)][:,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]),</span>
+                                                   <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
+                                           <span class="n">weights</span><span class="p">[</span><span class="o">-</span><span class="p">(</span><span class="n">idx</span> <span class="o">+</span> <span class="mi">2</span><span class="p">)]))</span>
+                      <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nmatrices</span><span class="p">)]]</span>
+        <span class="k">for</span> <span class="n">nprods</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">nmatrices</span><span class="p">):</span>
+            <span class="n">prod_list</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nmatrices</span> <span class="o">-</span> <span class="n">nprods</span><span class="p">):</span>
+                <span class="n">prod_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">products</span><span class="p">[</span><span class="n">nprods</span> <span class="o">-</span> <span class="mi">1</span><span class="p">][</span><span class="n">idx</span><span class="p">],</span> <span class="n">matrices</span><span class="p">[</span><span class="n">idx</span> <span class="o">+</span> <span class="n">nprods</span><span class="p">]))</span>
+            <span class="n">products</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">prod_list</span><span class="p">)</span>
+            <span class="n">prodnorms</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">jnp</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">prod_list</span><span class="p">[</span><span class="n">idx</span><span class="p">]),</span>
+                                                                        <span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">weights</span><span class="p">[</span><span class="o">-</span><span class="p">(</span><span class="n">idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)][:,</span>
+                                                                                         <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
+                                                   <span class="n">weights</span><span class="p">[</span><span class="o">-</span><span class="p">(</span><span class="n">idx</span> <span class="o">+</span> <span class="n">nprods</span> <span class="o">+</span> <span class="mi">2</span><span class="p">)]))</span>
+                              <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nmatrices</span> <span class="o">-</span> <span class="n">nprods</span><span class="p">)])</span>
+
+        <span class="n">ncombs</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="p">(</span><span class="n">nmatrices</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">ncombs</span><span class="p">):</span>
+            <span class="c1"># To iterate over all possible ways of putting norms or products between the layers, </span>
+            <span class="c1">#  interpret idx as binary number of length (nmatrices - 1),</span>
+            <span class="c1"># where the jth bit determines whether to put a norm or a product between layers j and j+1</span>
+            <span class="c1"># We use that the (nmatrices - 1)th bit of such number is always 0, which implies that</span>
+            <span class="c1"># each layer is taken into account for each term in the sum. </span>
+            <span class="n">jprev</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">Lloc</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">jcur</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nmatrices</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">idx</span> <span class="o">&amp;</span> <span class="p">(</span><span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="n">jcur</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">Lloc</span> <span class="o">*=</span> <span class="n">prodnorms</span><span class="p">[</span><span class="n">jcur</span> <span class="o">-</span> <span class="n">jprev</span><span class="p">][</span><span class="n">jprev</span><span class="p">]</span>
+                    <span class="n">jprev</span> <span class="o">=</span> <span class="n">jcur</span> <span class="o">+</span> <span class="mi">1</span>
+
+            <span class="n">L</span> <span class="o">+=</span> <span class="n">Lloc</span> <span class="o">/</span> <span class="n">ncombs</span>
+
+        <span class="n">weights</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">weighted</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">L</span><span class="p">,</span> <span class="n">weights</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">L</span><span class="p">,</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="MLP">
+<a class="viewcode-back" href="../../core.html#core.jax_utils.MLP">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">MLP</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39; Define multi-layer perception with JAX &#39;&#39;&#39;</span>
+    <span class="n">features</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+    <span class="n">activation_func</span><span class="p">:</span> <span class="nb">list</span>
+
+<div class="viewcode-block" id="MLP.setup">
+<a class="viewcode-back" href="../../core.html#core.jax_utils.MLP.setup">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">setup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># we automatically know what to do with lists, dicts of submodules</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layers</span> <span class="o">=</span> <span class="p">[</span><span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">feat</span><span class="p">)</span> <span class="k">for</span> <span class="n">feat</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">features</span><span class="p">]</span></div>
+
+        <span class="c1"># for single submodules, we would just write:</span>
+        <span class="c1"># self.layer1 = nn.Dense(feat1)</span>
+
+    <span class="nd">@nn</span><span class="o">.</span><span class="n">compact</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">act_func</span><span class="p">,</span> <span class="n">feat</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">activation_func</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">features</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">act_func</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">x</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">feat</span><span class="p">)(</span><span class="n">x</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">x</span> <span class="o">=</span> <span class="n">act_func</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">feat</span><span class="p">)(</span><span class="n">x</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">x</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Thom Badings, Wietze Koops, Sebastian Junges, Nils Jansen.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,6 @@
+iter,pi-lip_w=True_CPLip=True,pi-weights_w=True_CPLip=True,pi-lip_w=True_CPLip=False,pi-weights_w=True_CPLip=False,pi-lip_w=False_CPLip=True,pi-weights_w=False_CPLip=True,pi-lip_w=False_CPLip=False,pi-weights_w=False_CPLip=False,V-lip_w=True_CPLip=True,V-weights_w=True_CPLip=True,V-lip_w=True_CPLip=False,V-weights_w=True_CPLip=False,V-lip_w=False_CPLip=True,V-weights_w=False_CPLip=True,V-lip_w=False_CPLip=False,V-weights_w=False_CPLip=False
+0,4.113389,[1.         0.99871624],8.609546,[1.         0.99871624],4.5053477,,9.990638,,16.438295,[1.         0.95889354],47.7748,[1.         0.95889354],49.271637,,167.89517,
+1,4.113389,[1.         0.99871624],8.609546,[1.         0.99871624],4.5053477,,9.990638,,21.76123,[1.        0.9998495],55.602436,[1.        0.9998495],77.84694,,253.81369,
+2,4.113389,[1.         0.99871624],8.609546,[1.         0.99871624],4.5053477,,9.990638,,22.10442,[1.        0.9999022],54.986183,[1.        0.9999022],87.74948,,284.96518,
+3,4.8662677,[0.9975684 1.       ],9.854188,[0.9975684 1.       ],5.613856,,12.349603,,23.837057,[0.99986005 1.        ],58.28527,[0.99986005 1.        ],92.85633,,297.6421,
+4,5.45526,[0.99126714 1.        ],10.763896,[0.99126714 1.        ],6.5356884,,14.308266,,24.369291,[0.99952435 1.        ],59.231293,[0.99952435 1.        ],94.61433,,302.00204,

@@ -1,0 +1,708 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Policy Verification in Stochastic Dynamical Systems Using Logarithmic Neural Certificates &mdash; logRASM v1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=5cb08e4e"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Code documentation" href="modules.html" />
+    <link rel="prev" title="Documentation for the logRASM artifact" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            logRASM
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Policy Verification in Stochastic Dynamical Systems Using Logarithmic Neural Certificates</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#table-of-contents">Table of contents</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#a-note-on-cuda-gpu-acceleration">A note on CUDA / GPU acceleration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#code-documentation">Code Documentation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="#what-does-this-code-do">1. What does this code do?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#run-from-a-docker-container-preferred">2. Run from a Docker container (preferred)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#step-1-pull-or-download-the-docker-container">Step 1: Pull or download the Docker container</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#step-2a-run-with-gpu-acceleration">Step 2a: Run with GPU acceleration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#step-2b-run-without-gpu-acceleration">Step 2b: Run without GPU acceleration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#step-3-running-the-code">Step 3: Running the code</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="#installing-from-source">3. Installing from source</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#step-1-create-a-conda-environment">Step 1: Create a Conda environment</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#step-2-install-jax">Step 2: Install JAX</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#step-3-installing-remaining-dependencies">Step 3: Installing remaining dependencies</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="#running-for-a-single-benchmark-smoke-test">4. Running for a single benchmark (smoke test)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#smoke-test">Smoke test</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#validating-results">Validating results</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="#reproducing-results-from-the-paper">5. Reproducing results from the paper</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#resolving-out-of-memory-errors">Resolving out-of-memory errors</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#reproducing-the-results-from-1-partially">Reproducing the results from [1] partially</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#reproducing-the-results-from-1-completely">Reproducing the results from [1] completely</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="#training-policies-with-stable-baselines">6. Training policies with Stable-Baselines</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#overview-of-input-arguments">7. Overview of input arguments</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#general-arguments">General arguments</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#neural-network-size">Neural network size</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#enabling-disabling-contributions-as-for-the-ablation">Enabling/disabling contributions (as for the ablation)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#learner-arguments">Learner arguments</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#verifier-arguments">Verifier arguments</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="#rebuilding-the-docker-container">8. Rebuilding the Docker container</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">Code documentation</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">logRASM</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Policy Verification in Stochastic Dynamical Systems Using Logarithmic Neural Certificates</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/ReadMe.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="policy-verification-in-stochastic-dynamical-systems-using-logarithmic-neural-certificates">
+<h1>Policy Verification in Stochastic Dynamical Systems Using Logarithmic Neural Certificates<a class="headerlink" href="#policy-verification-in-stochastic-dynamical-systems-using-logarithmic-neural-certificates" title="Link to this heading"></a></h1>
+<p>This repository contains the supplementary code for the paper:</p>
+<ul class="simple">
+<li><p>[1] <a class="reference external" href="https://arxiv.org/abs/2406.00826">Policy Verification in Stochastic Dynamical Systems Using Logarithmic Neural Certificates</a> by Thom Badings, Wietze Koops, Sebastian
+Junges, and Nils Jansen (CAV 2025)</p></li>
+</ul>
+<p>This paper proposes techniques that make the verification of neural network policies in stochastic dynamical systems more scalable.
+In this artifact, we implement these techniques in a learner-verifier framework for verifying that a given neural network policy satisfies a given reach-avoid specification.
+The learner trains another neural network, which acts as a certificate proving that the policy satisfies the task.
+The verifier then checks whether this neural network certificate is a so-called logarithmic reach-avoid supermartingale (logRASM), which suffices to show reach-avoid guarantees.
+For more details about the approach, we refer to the paper above.</p>
+<section id="table-of-contents">
+<h2>Table of contents<a class="headerlink" href="#table-of-contents" title="Link to this heading"></a></h2>
+<ol class="arabic simple">
+<li><p><a class="reference internal" href="#1-what-does-this-code-do"><span class="xref myst">What does this code do?</span></a></p></li>
+<li><p><a class="reference internal" href="#2-run-from-a-docker-container-preferred"><span class="xref myst">Run from a Docker container (preferred)</span></a></p></li>
+<li><p><a class="reference internal" href="#3-installing-from-source"><span class="xref myst">Installing from source</span></a></p></li>
+<li><p><a class="reference internal" href="#4-running-for-a-single-benchmark-smoke-test"><span class="xref myst">Running for a single benchmark (smoke test)</span></a></p></li>
+<li><p><a class="reference internal" href="#5-reproducing-results-from-the-paper"><span class="xref myst">Reproducing results from the paper</span></a></p></li>
+<li><p><a class="reference internal" href="#6-training-policies-with-stable-baselines"><span class="xref myst">Training policies with Stable-Baselines</span></a></p></li>
+<li><p><a class="reference internal" href="#7-overview-of-input-arguments"><span class="xref myst">Overview of input arguments</span></a></p></li>
+<li><p><a class="reference internal" href="#8-rebuilding-the-docker-container"><span class="xref myst">Rebuilding the Docker container</span></a></p></li>
+</ol>
+</section>
+<section id="a-note-on-cuda-gpu-acceleration">
+<h2>A note on CUDA / GPU acceleration<a class="headerlink" href="#a-note-on-cuda-gpu-acceleration" title="Link to this heading"></a></h2>
+<p>This code is written in JAX and can be run on GPU with CUDA version 12. We provide a Docker container with CUDA support enabled (see <a class="reference internal" href="#2-run-from-a-docker-container-preferred"><span class="xref myst">step 2</span></a> below).
+We have tested the Docker container with GPU acceleration through CUDA on the following setups:</p>
+<ol class="arabic simple">
+<li><p>Linux 6.1.0-23-amd64, running Debian GNU/Linux 12, CUDA version 12.5, NVIDIA driver version 555.42.06</p></li>
+<li><p>Linux 6.8.0-49-generic, running Ubuntu 22.04.5 LTS, CUDA version 12.4, NVIDIA driver version 550.120</p></li>
+<li><p>Linux 6.1.0-25-amd64,running Debian GNU/Linux 12, CUDA version 12.2, NVIDIA driver version 535.216.01</p></li>
+</ol>
+<p>If you encounter problems running with GPU acceleration, feel free to open an issue on GitHub.</p>
+<blockquote>
+<div><p><strong><em>NOTE:</em></strong> GPU acceleration with JAX is only fully supported via CUDA. The support of JAX for Apple GPUs is only experimental and does not have all functionalities needed to run our code. To reproduce the results form [1] in reasonable time, running our code with GPU acceleration is necessary. More details can be found in the <a class="reference external" href="https://docs.jax.dev/en/latest/installation.html">JAX installation guide</a>.</p>
+</div></blockquote>
+</section>
+<section id="code-documentation">
+<h2>Code Documentation<a class="headerlink" href="#code-documentation" title="Link to this heading"></a></h2>
+<p>Documentation of the core Python functions of the code are provided in the <a class="reference internal" href="#Code/neural_stochastic_backup/docs/build/html/index.html"><span class="xref myst">code documentation</span></a> (generated with Sphinx).</p>
+</section>
+</section>
+<section id="what-does-this-code-do">
+<h1>1. What does this code do?<a class="headerlink" href="#what-does-this-code-do" title="Link to this heading"></a></h1>
+<p>While we refer to the paper [1] for details, we briefly explain what our code computes.
+In a nutshell, given</p>
+<ol class="arabic simple">
+<li><p>a discrete-time stochastic dynamical system, and</p></li>
+<li><p>a reach-avoid specification, i.e., a tuple $(X_T, X_U, \rho)$ of a set of target states $X_T$, a set of
+unsafe states $X_U$, and a probability bound $\rho \in (0,1)$,</p></li>
+</ol>
+<p>the code tries to learn a (neural network) policy that, when deployed on this system, satisfies the reach-avoid specification.
+This is done by learning a formal certificate, called a logarithmic reach-avoid supermartingale (logRASM), which is represented as a neural network.
+Finding a logRASM is a sufficient proof for the satisfaction of the specification.
+Our code implements an iterative learner-verifier framework that tries to find a RASM for the given inputs.
+If a valid RASM is found, our code terminates and returns the RASM as proof that the specification is satisfied.</p>
+</section>
+<section id="run-from-a-docker-container-preferred">
+<h1>2. Run from a Docker container (preferred)<a class="headerlink" href="#run-from-a-docker-container-preferred" title="Link to this heading"></a></h1>
+<p>The preferred way to run our code is by using the Docker container that we provide.
+Our Docker container is built upon Ubuntu, on top of which we installed Miniconda, JAX, and the other Python dependencies (see the Dockerfile in this artifact for details).</p>
+<blockquote>
+<div><p><strong><em>NOTE:</em></strong> On Ubuntu, Docker binds by default to a socket that other users can only access using sudo. Thus, it may be necessary to run Docker commands using <code class="docutils literal notranslate"><span class="pre">sudo</span></code>.
+Alternatively, one can follow <a class="reference external" href="https://docs.docker.com/engine/install/linux-postinstall/">this guide on the Docker website</a> to avoid having to run with sudo.</p>
+</div></blockquote>
+<section id="step-1-pull-or-download-the-docker-container">
+<h2>Step 1: Pull or download the Docker container<a class="headerlink" href="#step-1-pull-or-download-the-docker-container" title="Link to this heading"></a></h2>
+<p>We assume you have Docker installed (if not, see the <a class="reference external" href="https://docs.docker.com/get-docker/">Docker installation guide</a>). Then, run:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">docker</span> <span class="n">pull</span> <span class="n">thombadings</span><span class="o">/</span><span class="n">lograsm</span><span class="p">:</span><span class="n">v1</span>
+</pre></div>
+</div>
+<p>Or in case you downloaded this container from an (unpacked) archive (loading the container can take a few minutes):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">docker</span> <span class="n">load</span> <span class="o">-</span><span class="n">i</span> <span class="n">cav25_lograsm</span><span class="o">.</span><span class="n">tar</span>
+</pre></div>
+</div>
+<p>Our implementation is written in JAX and can be accelerated by running on an NVIDIA GPU with CUDA.
+If you want to run with GPU acceleration, you can continue with step 2a; otherwise, you can continue with step 2b.</p>
+<blockquote>
+<div><p><strong><em>NOTE:</em></strong> The Docker container above is built for AMD and X86 architectures. In addition, we also provide an ARM version of the container (e.g., for Apple Silicon), which can be pulled from Docker Hub via <code class="docutils literal notranslate"><span class="pre">thombadings/lograsm:v1-arm</span></code> or loaded via <code class="docutils literal notranslate"><span class="pre">cav25_lograsm-arm.tar</span></code>. However, the ARM version of the container is not compatible with CUDA. Therefore, the runtimes with the ARM version are not representative of [1], and we recommend using the AMD / X86 version with GPU acceleration for serious benchmarking.</p>
+</div></blockquote>
+</section>
+<section id="step-2a-run-with-gpu-acceleration">
+<h2>Step 2a: Run with GPU acceleration<a class="headerlink" href="#step-2a-run-with-gpu-acceleration" title="Link to this heading"></a></h2>
+<p>To run with GPU acceleration, you need an NVIDIA GPU that support CUDA and install:</p>
+<ol class="arabic simple">
+<li><p>An NVIDIA driver version compatible with CUDA 12.X (see <a class="reference external" href="https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html">this page</a> for compatible driver versions)</p></li>
+<li><p>The NVIDIA CUDA 12 Toolkit (can be installed from <a class="reference external" href="https://developer.nvidia.com/cuda-downloads">the NVIDIA website</a>)</p></li>
+<li><p>The NVIDIA Container Toolkit (can be installed using <a class="reference external" href="https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html">these instructions</a>)</p></li>
+</ol>
+<p>We assume you already have the NVIDIA GPU driver and CUDA 12 toolkit installed.
+Then, on Ubuntu or Debian, you can install the NVIDIA Container Toolkit (which is necessary to let Docker use CUDA) as follows:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">curl</span> <span class="o">-</span><span class="n">fsSL</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">nvidia</span><span class="o">.</span><span class="n">github</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">libnvidia</span><span class="o">-</span><span class="n">container</span><span class="o">/</span><span class="n">gpgkey</span> <span class="o">|</span> <span class="n">sudo</span> <span class="n">gpg</span> <span class="o">--</span><span class="n">dearmor</span> <span class="o">-</span><span class="n">o</span> <span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="n">share</span><span class="o">/</span><span class="n">keyrings</span><span class="o">/</span><span class="n">nvidia</span><span class="o">-</span><span class="n">container</span><span class="o">-</span><span class="n">toolkit</span><span class="o">-</span><span class="n">keyring</span><span class="o">.</span><span class="n">gpg</span> \
+  <span class="o">&amp;&amp;</span> <span class="n">curl</span> <span class="o">-</span><span class="n">s</span> <span class="o">-</span><span class="n">L</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">nvidia</span><span class="o">.</span><span class="n">github</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">libnvidia</span><span class="o">-</span><span class="n">container</span><span class="o">/</span><span class="n">stable</span><span class="o">/</span><span class="n">deb</span><span class="o">/</span><span class="n">nvidia</span><span class="o">-</span><span class="n">container</span><span class="o">-</span><span class="n">toolkit</span><span class="o">.</span><span class="n">list</span> <span class="o">|</span> \
+    <span class="n">sed</span> <span class="s1">&#39;s#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g&#39;</span> <span class="o">|</span> \
+    <span class="n">sudo</span> <span class="n">tee</span> <span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">apt</span><span class="o">/</span><span class="n">sources</span><span class="o">.</span><span class="n">list</span><span class="o">.</span><span class="n">d</span><span class="o">/</span><span class="n">nvidia</span><span class="o">-</span><span class="n">container</span><span class="o">-</span><span class="n">toolkit</span><span class="o">.</span><span class="n">list</span>
+<span class="n">sudo</span> <span class="n">apt</span><span class="o">-</span><span class="n">get</span> <span class="n">update</span>
+<span class="n">sudo</span> <span class="n">apt</span><span class="o">-</span><span class="n">get</span> <span class="n">install</span> <span class="o">-</span><span class="n">y</span> <span class="n">nvidia</span><span class="o">-</span><span class="n">container</span><span class="o">-</span><span class="n">toolkit</span>
+<span class="n">sudo</span> <span class="n">nvidia</span><span class="o">-</span><span class="n">ctk</span> <span class="n">runtime</span> <span class="n">configure</span> <span class="o">--</span><span class="n">runtime</span><span class="o">=</span><span class="n">docker</span>
+<span class="n">sudo</span> <span class="n">systemctl</span> <span class="n">restart</span> <span class="n">docker</span>
+</pre></div>
+</div>
+<p>To verify the NVIDIA Container Toolkit installation, you can run:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">docker</span> <span class="n">run</span> <span class="o">--</span><span class="n">rm</span> <span class="o">--</span><span class="n">runtime</span><span class="o">=</span><span class="n">nvidia</span> <span class="o">--</span><span class="n">gpus</span> <span class="nb">all</span> <span class="n">ubuntu</span> <span class="n">nvidia</span><span class="o">-</span><span class="n">smi</span>
+</pre></div>
+</div>
+<p>To use the Docker container with GPU acceleration, open a terminal and navigate to the folder that you want to use to synchronize results.
+Then, run the following command to start the Docker container:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">docker</span> <span class="n">run</span> <span class="o">--</span><span class="n">gpus</span> <span class="nb">all</span> <span class="o">--</span><span class="n">runtime</span><span class="o">=</span><span class="n">nvidia</span> <span class="o">--</span><span class="n">mount</span> <span class="nb">type</span><span class="o">=</span><span class="n">bind</span><span class="p">,</span><span class="n">source</span><span class="o">=</span><span class="s2">&quot;$(pwd)&quot;</span><span class="p">,</span><span class="n">target</span><span class="o">=/</span><span class="n">home</span><span class="o">/</span><span class="n">lograsm</span><span class="o">/</span><span class="n">output</span> <span class="o">-</span><span class="n">it</span> <span class="n">thombadings</span><span class="o">/</span><span class="n">lograsm</span><span class="p">:</span><span class="n">v1</span>
+</pre></div>
+</div>
+</section>
+<section id="step-2b-run-without-gpu-acceleration">
+<h2>Step 2b: Run without GPU acceleration<a class="headerlink" href="#step-2b-run-without-gpu-acceleration" title="Link to this heading"></a></h2>
+<p>All experiments in [1] are run on a GPU, and we do not recommend performing serious benchmarking without GPU acceleration. However, you can run the Docker container without GPU
+acceleration as well (be aware of significantly higher run times).</p>
+<p>To use the Docker container without GPU acceleration, open a terminal and navigate to the folder that you want to use to synchronize results.
+Then, run the following command:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">docker</span> <span class="n">run</span> <span class="o">--</span><span class="n">mount</span> <span class="nb">type</span><span class="o">=</span><span class="n">bind</span><span class="p">,</span><span class="n">source</span><span class="o">=</span><span class="s2">&quot;$(pwd)&quot;</span><span class="p">,</span><span class="n">target</span><span class="o">=/</span><span class="n">home</span><span class="o">/</span><span class="n">lograsm</span><span class="o">/</span><span class="n">output</span> <span class="o">-</span><span class="n">it</span> <span class="n">thombadings</span><span class="o">/</span><span class="n">lograsm</span><span class="p">:</span><span class="n">v1</span>
+</pre></div>
+</div>
+</section>
+<section id="step-3-running-the-code">
+<h2>Step 3: Running the code<a class="headerlink" href="#step-3-running-the-code" title="Link to this heading"></a></h2>
+<p>After starting the Docker container with (step 2a) or without (step 2b) GPU acceleration, you will see a prompt inside the Docker container. The ReadMe in this folder is what you
+are reading. Now, you are ready to run the code for a single model (Section 4) or to replicate (a subset of) the experiments presented in [1] (Section 5).</p>
+</section>
+</section>
+<section id="installing-from-source">
+<h1>3. Installing from source<a class="headerlink" href="#installing-from-source" title="Link to this heading"></a></h1>
+<p>For standard usage, we recommend using the Docker container, but you can also build our tool from source.
+We recommend installing in a conda environment, but other installation methods are also possible.
+Below, we list the steps needed to install via (Mini)conda.</p>
+<section id="step-1-create-a-conda-environment">
+<h2>Step 1: Create a Conda environment<a class="headerlink" href="#step-1-create-a-conda-environment" title="Link to this heading"></a></h2>
+<p>Assuming that <a class="reference external" href="https://docs.anaconda.com/free/miniconda/">you have (Mini)conda installed</a>, first create a new environment with Python version 3.12:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">conda</span> <span class="n">create</span> <span class="o">-</span><span class="n">n</span> <span class="n">lograsm</span> <span class="n">python</span><span class="o">=</span><span class="mf">3.12</span>
+<span class="n">conda</span> <span class="n">activate</span> <span class="n">lograsm</span>
+</pre></div>
+</div>
+</section>
+<section id="step-2-install-jax">
+<h2>Step 2: Install JAX<a class="headerlink" href="#step-2-install-jax" title="Link to this heading"></a></h2>
+<p>To install JAX with GPU acceleration, run</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="o">--</span><span class="n">upgrade</span> <span class="s2">&quot;jax[cuda12]&quot;</span>
+</pre></div>
+</div>
+<p>This will install the necessary CUDA dependencies within the Conda environment</p>
+<p>To instead install JAX without GPU acceleration, run</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="o">--</span><span class="n">upgrade</span> <span class="n">jax</span>
+</pre></div>
+</div>
+</section>
+<section id="step-3-installing-remaining-dependencies">
+<h2>Step 3: Installing remaining dependencies<a class="headerlink" href="#step-3-installing-remaining-dependencies" title="Link to this heading"></a></h2>
+<p>Finally, install the remaining Python dependencies:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip3</span> <span class="n">install</span> <span class="o">-</span><span class="n">r</span> <span class="n">requirements</span><span class="o">.</span><span class="n">txt</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="running-for-a-single-benchmark-smoke-test">
+<h1>4. Running for a single benchmark (smoke test)<a class="headerlink" href="#running-for-a-single-benchmark-smoke-test" title="Link to this heading"></a></h1>
+<p>The main Python file to run the code is <code class="docutils literal notranslate"><span class="pre">run.py</span></code>.
+See <a class="reference internal" href="#7-overview-of-input-arguments"><span class="xref myst">Section 7</span></a> of this ReadMe for a full overview of the available input arguments.
+A minimal command to train and verify a logRASM is:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="n">run</span><span class="o">.</span><span class="n">py</span> <span class="o">--</span><span class="n">model</span> <span class="o">&lt;</span><span class="n">benchmark</span><span class="o">&gt;</span> <span class="o">--</span><span class="n">probability_bound</span> <span class="o">&lt;</span><span class="n">bound</span><span class="o">&gt;</span> <span class="o">--</span><span class="n">pretrain_method</span> <span class="o">&lt;</span><span class="n">algorithm</span><span class="o">&gt;</span> <span class="o">--</span><span class="n">pretrain_total_steps</span> <span class="o">&lt;</span><span class="n">steps</span><span class="o">&gt;</span> <span class="o">--</span><span class="n">mesh_loss</span> <span class="o">&lt;</span><span class="n">mesh_loss</span><span class="o">&gt;</span> <span class="o">--</span><span class="n">exp_certificate</span>
+</pre></div>
+</div>
+<p>In this command, <code class="docutils literal notranslate"><span class="pre">&lt;benchmark&gt;</span></code> specifies the benchmark to run, <code class="docutils literal notranslate"><span class="pre">&lt;bound&gt;</span></code> is the probability bound of the reach-avoid specification, <code class="docutils literal notranslate"><span class="pre">&lt;algorithm&gt;</span></code> is the method used to pretrain the
+input neural network policy for the specified number of steps <code class="docutils literal notranslate"><span class="pre">&lt;steps&gt;</span></code>, and <code class="docutils literal notranslate"><span class="pre">&lt;mesh_loss&gt;</span></code> specifies the discretization cell width used in the learner’s loss function (see below for the options).</p>
+<section id="smoke-test">
+<h2>Smoke test<a class="headerlink" href="#smoke-test" title="Link to this heading"></a></h2>
+<p>The following example can be run to verify if the code runs correctly. If the code runs on GPU, you should see <code class="docutils literal notranslate"><span class="pre">Running</span> <span class="pre">JAX</span> <span class="pre">on</span> <span class="pre">device:</span> <span class="pre">gpu</span></code> in the terminal output (directly after the
+overview of the arguments):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="n">run</span><span class="o">.</span><span class="n">py</span> <span class="o">--</span><span class="n">model</span> <span class="n">LinearSystem</span> <span class="o">--</span><span class="n">probability_bound</span> <span class="mf">0.9999</span> <span class="o">--</span><span class="n">pretrain_method</span> <span class="n">PPO_JAX</span> <span class="o">--</span><span class="n">pretrain_total_steps</span> <span class="mi">100000</span> <span class="o">--</span><span class="n">mesh_loss</span> <span class="mf">0.001</span> <span class="o">--</span><span class="n">exp_certificate</span>
+</pre></div>
+</div>
+<p>If this results in an Out-Of-Memory error, reduce batch sizes, for example using <code class="docutils literal notranslate"><span class="pre">--verify_batch_size</span> <span class="pre">3000</span> <span class="pre">--forward_pass_batch_size</span> <span class="pre">100000</span></code> (see <a class="reference internal" href="#resolving-out-of-memory-errors"><span class="xref myst">here</span></a> for more details).</p>
+<p>This example first pretrains a policy on the <code class="docutils literal notranslate"><span class="pre">linear-sys</span></code> benchmark for 100k steps using PPO and exports this policy as a checkpoint to the folder <code class="docutils literal notranslate"><span class="pre">ckpt/</span></code>. Then, this policy is
+given as input to the learner-verifier framework, which trains a logRASM that verifies a reach-avoid specification with a probability bound of $\rho = 0.9999$.</p>
+<ul>
+<li><p><strong>Expected runtime for this command:</strong> 1-2 minute on GPU, or 3-5 minutes on CPU.</p></li>
+<li><p><strong>Expected result:</strong> A folder <code class="docutils literal notranslate"><span class="pre">output/date=&lt;datetime&gt;_model=LinearSystem_p=0.9999_seed=1_alg=PPO_JAX</span></code> is created, in which the following results are stored:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;datetime&gt;_certifcate_Iteration0.pdf</span></code> / <code class="docutils literal notranslate"><span class="pre">.png</span></code> shows the learned logRASM:</p>
+<img src="./img/smoke_test.png" width="300px">
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">info.csv</span></code> summarizes the most important info of the run (e.g., benchmark name, probability bound, total runtime, etc.)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">args.csv</span></code> contains a full overview of all arguments used by the run
+-<code class="docutils literal notranslate"><span class="pre">times.csv</span></code> lists the runtimes of each iteration and step of the run</p></li>
+</ul>
+</li>
+</ul>
+<p>Upon termination of the framework, the learned certificate is exported to the corresponding subfolder in <code class="docutils literal notranslate"><span class="pre">output/</span></code>, together with figures and CSV files
+that summarize other relevant statistics of the run.</p>
+</section>
+<section id="validating-results">
+<h2>Validating results<a class="headerlink" href="#validating-results" title="Link to this heading"></a></h2>
+<p>The file <code class="docutils literal notranslate"><span class="pre">validate_certificate.py</span></code> can be used to check the validity of a learned RASM empirically.
+This validation can be called automatically upon termination of the learner-verifier by adding the argument <code class="docutils literal notranslate"><span class="pre">--validate</span></code> to the <code class="docutils literal notranslate"><span class="pre">run.py</span></code> script.
+Doing so</p>
+<p>Alternatively, the validation can be called externally on a given checkpoint as follows:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="n">validate_certificate</span><span class="o">.</span><span class="n">py</span> <span class="o">--</span><span class="n">checkpoint</span> <span class="s1">&#39;output/.../final_ckpt/&#39;</span> <span class="o">--</span><span class="n">cell_width</span> <span class="mf">0.01</span>
+</pre></div>
+</div>
+<p>Here, <code class="docutils literal notranslate"><span class="pre">--checkpoint</span></code> should be given the path to the exported final checkpoint (stored in <code class="docutils literal notranslate"><span class="pre">output/&lt;folder-of-run&gt;/</span></code>), and <code class="docutils literal notranslate"><span class="pre">--cell_width</span></code> is the mesh size for the (uniform)
+discretization used to validate the RASM empirically.</p>
+<p>It is also possible to directly perform the validation for all checkpoints in a given directory:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="n">validate_certificate</span><span class="o">.</span><span class="n">py</span> <span class="o">--</span><span class="n">check_folder</span> <span class="s1">&#39;output/subfolder-with-multiple-checkpoints/&#39;</span> <span class="o">--</span><span class="n">cell_width</span> <span class="mf">0.01</span>
+</pre></div>
+</div>
+<p>Several other arguments can be passed; see <code class="docutils literal notranslate"><span class="pre">validate_certificate.py</span></code> for the full overview.</p>
+</section>
+</section>
+<section id="reproducing-results-from-the-paper">
+<h1>5. Reproducing results from the paper<a class="headerlink" href="#reproducing-results-from-the-paper" title="Link to this heading"></a></h1>
+<p>The results presented in [1] consist of five main parts:</p>
+<ol class="arabic simple">
+<li><p>Examples of trained logRASMs (Figure 5 in [1])</p></li>
+<li><p>Ablation study on the 2D benchmarks (Table 1 in [1])</p></li>
+<li><p>Ablation study on the 3D and 4D benchmarks (Table 2 in [2])</p></li>
+<li><p>Experiments on the 2D benchmarks with policies pre-trained with other RL algorithms in Stable-Baselines3 (Table 3 in [1])</p></li>
+<li><p>Comparison of our Lipschitz constants to LipBaB (Table 5 in the appendix of [1])</p></li>
+</ol>
+<p>Since reproducing all results takes multiple weeks, we also provide an option to reproduce the results partially.</p>
+<section id="resolving-out-of-memory-errors">
+<h2>Resolving out-of-memory errors<a class="headerlink" href="#resolving-out-of-memory-errors" title="Link to this heading"></a></h2>
+<p>The provided experiments scripts contain the same parameters as used in the experiments of [1], which are run on server running Debian, with an AMD Ryzen Threadripper PRO 5965WX
+CPU, 512 GB of RAM, and an NVIDIA GeForce RTX 4090 GPU. When running on a machine with less resources, you might get out-of-memory errors. To resolve these issues, try lowering the
+following parameters:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">--verify_batch_size</span></code>, which is 30000 by default and might have to be reduced to, e.g., 5000 on a typical laptop (or even lower)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--forward_pass_batch_size</span></code>, which is 1 million by default and might have to be reduced to, e.g., 100k on a typical laptop</p></li>
+</ul>
+<p>Moreover, when running on a less powerful machine (or on CPU), you may want to increase the timeout to obtain results on more instances.</p>
+<p>You can also directly pass these parameters to the experiment script we describe below.
+For example, to run the <em>tiny benchmark set</em> (see below) with a verify batch size of 3000, a forward pass batch size of 100k, and all timeouts multiplied by two, run:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">bash</span> <span class="n">experiments</span><span class="o">/</span><span class="n">run_tiny_benchmarks</span><span class="o">.</span><span class="n">sh</span> <span class="mi">3000</span> <span class="mi">100000</span> <span class="mi">2</span> <span class="o">|</span> <span class="n">tee</span> <span class="n">output</span><span class="o">/</span><span class="n">tiny_benchmarks</span><span class="o">.</span><span class="n">out</span>
+</pre></div>
+</div>
+<p>Note that you either have to specify all three arguments or none at all.
+The multiplication of the timeouts is taken compared to the default timeouts (as used in the experiments in [1]).</p>
+</section>
+<section id="reproducing-the-results-from-1-partially">
+<h2>Reproducing the results from [1] partially<a class="headerlink" href="#reproducing-the-results-from-1-partially" title="Link to this heading"></a></h2>
+<p>We provide two scripts to replicate a subset of the results from [1]:</p>
+<ol class="arabic">
+<li><p><strong>Tiny benchmark set</strong> (recommended when running on a laptop or on CPU)</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">bash</span> <span class="n">experiments</span><span class="o">/</span><span class="n">run_tiny_benchmarks</span><span class="o">.</span><span class="n">sh</span> <span class="mi">30000</span> <span class="mi">1000000</span> <span class="mi">6</span> <span class="o">|</span> <span class="n">tee</span> <span class="n">output</span><span class="o">/</span><span class="n">tiny_benchmarks</span><span class="o">.</span><span class="n">out</span>
+</pre></div>
+</div>
+<p>When encountering out-of-memory errors, try reducing the batch sizes (see <a class="reference internal" href="#resolving-out-of-memory-errors"><span class="xref myst">the section above</span></a>). The timeout multiplier of 6 helps to obtain more results within the timout when running on CPU.</p>
+<ul class="simple">
+<li><p>Expected run time on laptop CPU: 6 hours (tested on an Apple Macbook Pro M4 Pro, 24 GB of RAM)</p></li>
+<li><p>Expected run time on laptop GPU: 5-6 hours (tested on a laptop running Ubuntu, with an Intel i7 CPU, 64 GB of RAM, and an NVIDIA RTX A500 GPU)</p></li>
+</ul>
+</li>
+<li><p><strong>Small benchmark set</strong> (recommended when running on a more powerful machine)</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">bash</span> <span class="n">experiments</span><span class="o">/</span><span class="n">run_partial_benchmarks</span><span class="o">.</span><span class="n">sh</span> <span class="o">|</span> <span class="n">tee</span> <span class="n">output</span><span class="o">/</span><span class="n">partial_benchmarks</span><span class="o">.</span><span class="n">out</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Expected run time on GPU: 8 hours (tested on a Debian server, with an AMD Ryzen Threadripper PRO 5965WX CPU, 512 GB of RAM, and an NVIDIA GeForce RTX 4090 GPU)</p></li>
+<li><p>Expected run time on CPU: Not tested</p></li>
+</ul>
+</li>
+</ol>
+<p>Running either of these scripts generates results in the <code class="docutils literal notranslate"><span class="pre">output/</span></code> folder (if you followed the Docker instructions above, these results should also appear in the folder on the host machine where you started the Docker container from). In particular, the partial benchmark set yields the following results (the tiny set only runs the experiments for <code class="docutils literal notranslate"><span class="pre">linear-sys</span></code>):</p>
+<ul>
+<li><p><strong>Trained logRASM figures</strong>: Plot the logRASMs for the four 2D benchmarks, exported to <code class="docutils literal notranslate"><span class="pre">output/figures/</span></code> and the respective subfolder therein:</p>
+<p><img src="./img/linsys.png" width="170px"><img src="./img/linsys1.png" width="170px"><img src="./img/pendulum.png" width="170px"><img src="./img/collisionavoid.png" width="170px"></p>
+</li>
+<li><p><strong>Ablation study (2D benchmarks):</strong> Partial version of Table 1 in [1], exported to <code class="docutils literal notranslate"><span class="pre">output/main-benchmarks_table_&lt;datetime&gt;.tex</span></code> and <code class="docutils literal notranslate"><span class="pre">.csv</span></code>:</p>
+<img src="./img/table-partial-main.png" width="400px">
+</li>
+<li><p><strong>Ablation study (3D and 4D benchmarks):</strong> Partial version of Table 2 in [1], exported to <code class="docutils literal notranslate"><span class="pre">output/hard-benchmarks_table_&lt;datetime&gt;.tex</span></code> and <code class="docutils literal notranslate"><span class="pre">.csv</span></code>:</p>
+<img src="./img/table-partial-hard.png" width="400px">
+</li>
+<li><p><strong>Policies pretrained with Stable-Baselines3:</strong> Partial version of Table 3 in [1], exported to <code class="docutils literal notranslate"><span class="pre">output/SB3-benchmarks_table_&lt;datetime&gt;.tex</span></code> and <code class="docutils literal notranslate"><span class="pre">.csv</span></code>:</p>
+<img src="./img/table-partial-sb3.png" width="400px">
+</li>
+</ul>
+<blockquote>
+<div><p><strong><em>NOTE:</em></strong> We have experienced that the code runs slightly slower in the Docker container than when built from source. Thus, even though the results above are produced on the
+same machine as in [1], the resulting runtimes are higher.</p>
+</div></blockquote>
+</section>
+<section id="reproducing-the-results-from-1-completely">
+<h2>Reproducing the results from [1] completely<a class="headerlink" href="#reproducing-the-results-from-1-completely" title="Link to this heading"></a></h2>
+<p>To reproduce the experiments completely, run all of the following commands. Note that the expected total runtime is multiple weeks.</p>
+<p>First, reproduce the logRASMs presented in Figure 5 in [1] by running:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">bash</span> <span class="n">experiments</span><span class="o">/</span><span class="n">run_figures</span><span class="o">.</span><span class="n">sh</span> <span class="o">|</span> <span class="n">tee</span> <span class="n">output</span><span class="o">/</span><span class="n">full_figures</span><span class="o">.</span><span class="n">out</span>
+</pre></div>
+</div>
+<p>Second, the following command reproduces Tables 1 and 2 in [1] and exports these to the respective <code class="docutils literal notranslate"><span class="pre">.tex</span></code> and <code class="docutils literal notranslate"><span class="pre">.csv</span></code> files in the <code class="docutils literal notranslate"><span class="pre">output/</span></code> folder:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">bash</span> <span class="n">experiments</span><span class="o">/</span><span class="n">run_main</span><span class="o">.</span><span class="n">sh</span> <span class="o">|</span> <span class="n">tee</span> <span class="n">output</span><span class="o">/</span><span class="n">full_main</span><span class="o">.</span><span class="n">out</span>
+<span class="n">bash</span> <span class="n">experiments</span><span class="o">/</span><span class="n">run_hard</span><span class="o">.</span><span class="n">sh</span> <span class="o">|</span> <span class="n">tee</span> <span class="n">output</span><span class="o">/</span><span class="n">full_hard</span><span class="o">.</span><span class="n">out</span>
+</pre></div>
+</div>
+<p>For the Stable-Baselines3 experiments, we provide input policies trained with TRPO, TQC, SAC, and A2C as pretrained checkpoints in this repository (in the <code class="docutils literal notranslate"><span class="pre">ckpt_pretrain_sb3/</span></code>
+folder). While not necessary for reproducing the results, you can retrain these policies by running:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">bash</span> <span class="n">train_SB3_all</span><span class="o">.</span><span class="n">sh</span> <span class="o">|</span> <span class="n">tee</span> <span class="n">output</span><span class="o">/</span><span class="n">train_SB3_all</span><span class="o">.</span><span class="n">out</span>
+</pre></div>
+</div>
+<p>Next, the following command reproduces Table 3 in [1] and exports it to the respective <code class="docutils literal notranslate"><span class="pre">.tex</span></code> and <code class="docutils literal notranslate"><span class="pre">.csv</span></code> files in the <code class="docutils literal notranslate"><span class="pre">output/</span></code> folder:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">bash</span> <span class="n">experiments</span><span class="o">/</span><span class="n">run_stablebaselines</span><span class="o">.</span><span class="n">sh</span> <span class="o">|</span> <span class="n">tee</span> <span class="n">output</span><span class="o">/</span><span class="n">full_SB3</span><span class="o">.</span><span class="n">out</span>
+</pre></div>
+</div>
+<p>Finally, the following command runs the comparison to LipBaB, an anytime algorithm for computing upper bounds on Lipschitz constants for neural networks. These experiments are
+presented in Table 5 in the appendix of [1], and can be reproduced by running (files exported to <code class="docutils literal notranslate"><span class="pre">output/LipBaB_table_&lt;datetime&gt;.tex</span></code>):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">bash</span> <span class="n">experiments</span><span class="o">/</span><span class="n">run_LipBaB</span><span class="o">.</span><span class="n">sh</span> <span class="o">|</span> <span class="n">tee</span> <span class="n">output</span><span class="o">/</span><span class="n">experiments_LipBaB</span><span class="o">.</span><span class="n">out</span>
+<span class="n">python3</span> <span class="n">LipBaB_interpret_results</span><span class="o">.</span><span class="n">py</span> <span class="o">&lt;</span> <span class="n">output</span><span class="o">/</span><span class="n">experiments_LipBaB</span><span class="o">.</span><span class="n">out</span> <span class="o">|</span> <span class="n">tee</span> <span class="n">output</span><span class="o">/</span><span class="n">LipBaB_table</span><span class="o">.</span><span class="n">tex</span>
+</pre></div>
+</div>
+<p>This script runs LipBaB on several checkpoints of learned RASMs (together with the corresponding policy), which we provide as pretrained checkpoints in this repository.
+The Python script <code class="docutils literal notranslate"><span class="pre">LipBaB_interpret_results.py</span></code> then takes the terminal output to produce Table 3 as presented in the appendix of [1], and exports this table to
+<code class="docutils literal notranslate"><span class="pre">output/LipBaB_table.tex</span></code>.
+For reproducing these results using a different set of checkpoints than the checkpoints that we provide in <code class="docutils literal notranslate"><span class="pre">ckpt_lipbab</span></code>, the script <code class="docutils literal notranslate"><span class="pre">bash</span> <span class="pre">collect_checkpoints_LipBaB.sh</span></code> can be
+called on the <code class="docutils literal notranslate"><span class="pre">main</span></code> folder produced in the ablation study to collect and rename the specific checkpoints used in the LipBaB comparison.</p>
+</section>
+</section>
+<section id="training-policies-with-stable-baselines">
+<h1>6. Training policies with Stable-Baselines<a class="headerlink" href="#training-policies-with-stable-baselines" title="Link to this heading"></a></h1>
+<p>By default, <code class="docutils literal notranslate"><span class="pre">run.py</span></code> trains policies with PPO (implemented in JAX).
+For some experiments, we instead train policies with other RL algorithms implemented in <a class="reference external" href="https://stable-baselines3.readthedocs.io/en/master/">Stable-Baselines3</a>.
+Since these implementations are not optimized for our code (and thus slow to run), we provide a script to externally pretrain policies using Stable-Baselines3.
+This script is called <code class="docutils literal notranslate"><span class="pre">train_SB3.py</span></code> and can, for example, be used as follows:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="n">train_SB3</span><span class="o">.</span><span class="n">py</span> <span class="o">--</span><span class="n">model</span> <span class="n">LinearSystem</span> <span class="o">--</span><span class="n">layout</span> <span class="mi">0</span> <span class="o">--</span><span class="n">algorithm</span> <span class="n">TRPO</span> <span class="o">--</span><span class="n">total_steps</span> <span class="mi">100000</span> <span class="o">--</span><span class="n">seed</span> <span class="mi">1</span> <span class="o">--</span><span class="n">num_envs</span> <span class="mi">10</span> <span class="o">--</span><span class="n">neurons_per_layer</span> <span class="mi">128</span> <span class="o">--</span><span class="n">hidden_layers</span> <span class="mi">3</span>
+</pre></div>
+</div>
+<p>The algorithms we use for our experiments are TRPO, TQC, SAC, and A2C.</p>
+<blockquote>
+<div><p><strong><em>NOTE:</em></strong> We have experienced issues running Stable-Baselines3 within the Docker container with GPU acceleration enabled. When running the <code class="docutils literal notranslate"><span class="pre">train_SB3.py</span></code> script above, please run the Docker container without GPU acceleration or build the code from source. Also, all Stable-Baselines3 policies needed to reproduce the results from [1] are already provided with the code.</p>
+</div></blockquote>
+</section>
+<section id="overview-of-input-arguments">
+<h1>7. Overview of input arguments<a class="headerlink" href="#overview-of-input-arguments" title="Link to this heading"></a></h1>
+<p>We provide an overview of the most important input arguments to the <code class="docutils literal notranslate"><span class="pre">run.py</span></code> script.
+For an overview of <em>all arguments</em>, please run <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">run.py</span> <span class="pre">--help</span></code> or see <code class="docutils literal notranslate"><span class="pre">core/parse_args.py</span></code>.
+Note that some arguments are never changed from their default values in our experiments.</p>
+<p>All arguments are given as <code class="docutils literal notranslate"><span class="pre">--&lt;argument</span> <span class="pre">name&gt;</span> <span class="pre">&lt;value&gt;</span></code> or (in the case of boolean values) as <code class="docutils literal notranslate"><span class="pre">--&lt;argument</span> <span class="pre">name&gt;</span></code>.</p>
+<section id="general-arguments">
+<h2>General arguments<a class="headerlink" href="#general-arguments" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Arguments</p></th>
+<th class="head"><p>Default</p></th>
+<th class="head"><p>Help</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>model</p></td>
+<td><p>n/a</p></td>
+<td><p>Gymnasium environment ID</p></td>
+</tr>
+<tr class="row-odd"><td><p>layout</p></td>
+<td><p>0</p></td>
+<td><p>Select a particular layout for the benchmark model (if this option exists)</p></td>
+</tr>
+<tr class="row-even"><td><p>probability_bound</p></td>
+<td><p>0.9</p></td>
+<td><p>Bound on the reach-avoid probability to verify</p></td>
+</tr>
+<tr class="row-odd"><td><p>seed</p></td>
+<td><p>1</p></td>
+<td><p>Random seed</p></td>
+</tr>
+<tr class="row-even"><td><p>logger_prefix</p></td>
+<td><p>n/a</p></td>
+<td><p>Prefix to  export file</p></td>
+</tr>
+<tr class="row-odd"><td><p>silent</p></td>
+<td><p>FALSE</p></td>
+<td><p>Only show crucial output in terminal</p></td>
+</tr>
+<tr class="row-even"><td><p>validate</p></td>
+<td><p>FALSE</p></td>
+<td><p>If True, automatically perform validation once (log)RASM was successfully learned</p></td>
+</tr>
+<tr class="row-odd"><td><p>plot_intermediate</p></td>
+<td><p>FALSE</p></td>
+<td><p>If True, plots are generated throughout the CEGIS iterations (increases runtime)</p></td>
+</tr>
+<tr class="row-even"><td><p>load_ckpt</p></td>
+<td><p>n/a</p></td>
+<td><p>If given, a checkpoint is loaded from this file</p></td>
+</tr>
+<tr class="row-odd"><td><p>pretrain_method</p></td>
+<td><p>PPO_JAX</p></td>
+<td><p>Method to pretrain (initialize) the policy. If different from PPO_JAX, it tries to use StableBaselines3</p></td>
+</tr>
+<tr class="row-even"><td><p>pretrain_total_steps</p></td>
+<td><p>1_000_000</p></td>
+<td><p>Total number of steps for pretraining the policy</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="neural-network-size">
+<h2>Neural network size<a class="headerlink" href="#neural-network-size" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Arguments</p></th>
+<th class="head"><p>Default</p></th>
+<th class="head"><p>Help</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>neurons_per_layer</p></td>
+<td><p>128</p></td>
+<td><p>Number of neurons per (hidden) layer</p></td>
+</tr>
+<tr class="row-odd"><td><p>hidden_layers</p></td>
+<td><p>2</p></td>
+<td><p>Number of hidden layers</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="enabling-disabling-contributions-as-for-the-ablation">
+<h2>Enabling/disabling contributions (as for the ablation)<a class="headerlink" href="#enabling-disabling-contributions-as-for-the-ablation" title="Link to this heading"></a></h2>
+<p>Adding <code class="docutils literal notranslate"><span class="pre">--exp_certificate</span> <span class="pre">--weighted</span> <span class="pre">--cplip</span></code> enables both of our contributions (as used in the experiments in [1]). Similarly, <code class="docutils literal notranslate"><span class="pre">--exp_certificate</span> <span class="pre">--no-weighted</span> <span class="pre">--no-cplip</span></code>
+corresponds to using logRASMs but not our Lipschitz contributions, and <code class="docutils literal notranslate"><span class="pre">--no-exp_certificate</span> <span class="pre">--weighted</span> <span class="pre">--cplip</span></code> to using our Lipschitz contributions but with standard RASMs.
+Finally, <code class="docutils literal notranslate"><span class="pre">--no-exp_certificate</span> <span class="pre">--no-weighted</span> <span class="pre">--no-cplip</span></code> is the baseline verifier.</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Arguments</p></th>
+<th class="head"><p>Default</p></th>
+<th class="head"><p>Help</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>exp_certificate</p></td>
+<td><p>FALSE</p></td>
+<td><p>If True, train a logRASM (i.e., exponential certificate). If False, use a standard RASM</p></td>
+</tr>
+<tr class="row-odd"><td><p>weighted</p></td>
+<td><p>TRUE</p></td>
+<td><p>If True, use weighted norms to compute Lipschitz constants</p></td>
+</tr>
+<tr class="row-even"><td><p>cplip</p></td>
+<td><p>TRUE</p></td>
+<td><p>If True, use CPLip method to compute Lipschitz constants</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="learner-arguments">
+<h2>Learner arguments<a class="headerlink" href="#learner-arguments" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Learner</p></th>
+<th class="head"><p>Default</p></th>
+<th class="head"><p>Help</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Policy_learning_rate</p></td>
+<td><p>5.00E-05</p></td>
+<td><p>Learning rate for changing the policy in the CEGIS loop</p></td>
+</tr>
+<tr class="row-odd"><td><p>V_learning_rate</p></td>
+<td><p>5.00E-04</p></td>
+<td><p>Learning rate for changing the certificate in the CEGIS loop</p></td>
+</tr>
+<tr class="row-even"><td><p>epochs</p></td>
+<td><p>25</p></td>
+<td><p>Number of epochs to run in each iteration</p></td>
+</tr>
+<tr class="row-odd"><td><p>num_samples_per_epoch</p></td>
+<td><p>90000</p></td>
+<td><p>Total number of samples to train over in each epoch</p></td>
+</tr>
+<tr class="row-even"><td><p>num_counterexamples_in_buffer</p></td>
+<td><p>30000</p></td>
+<td><p>Number of counterexamples to keep in the buffer</p></td>
+</tr>
+<tr class="row-odd"><td><p>batch_size</p></td>
+<td><p>4096</p></td>
+<td><p>Batch size used by the learner in each epoch</p></td>
+</tr>
+<tr class="row-even"><td><p>expDecr_multiplier</p></td>
+<td><p>1</p></td>
+<td><p>Multiply the weighted counterexample expected decrease loss by this value</p></td>
+</tr>
+<tr class="row-odd"><td><p>eps_decrease</p></td>
+<td><p>0</p></td>
+<td><p>Epsilon to the expected decrease loss function</p></td>
+</tr>
+<tr class="row-even"><td><p>mesh_loss</p></td>
+<td><p>0.001</p></td>
+<td><p>Mesh size used in the loss function</p></td>
+</tr>
+<tr class="row-odd"><td><p>mesh_loss_decrease_per_iter</p></td>
+<td><p>1</p></td>
+<td><p>Specifying the decrease factor in the mesh size used in the loss function per iteration (one means no decrease)</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="verifier-arguments">
+<h2>Verifier arguments<a class="headerlink" href="#verifier-arguments" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Verifier</p></th>
+<th class="head"><p>Default</p></th>
+<th class="head"><p>Help</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>mesh_verify_grid_init</p></td>
+<td><p>0.01</p></td>
+<td><p>Initial mesh size for verifying grid. Mesh is defined such that |x-y|_1 &lt;= tau for any x in X and discretized point y</p></td>
+</tr>
+<tr class="row-odd"><td><p>mesh_refine_min</p></td>
+<td><p>1.00E-09</p></td>
+<td><p>Lowest allowed verification grid mesh size in the final verification</p></td>
+</tr>
+<tr class="row-even"><td><p>max_refine_factor</p></td>
+<td><p>10</p></td>
+<td><p>Maximum value to split each grid point into (per dimension), during the (local) refinement</p></td>
+</tr>
+<tr class="row-odd"><td><p>verify_batch_size</p></td>
+<td><p>30000</p></td>
+<td><p>Number of states for which the verifier checks exp. decrease condition in the same batch (reduce if this gives memory issues)</p></td>
+</tr>
+<tr class="row-even"><td><p>forward_pass_batch_size</p></td>
+<td><p>1_000_000</p></td>
+<td><p>Batch size for performing forward passes on the neural network (reduce if this gives memory issues)</p></td>
+</tr>
+<tr class="row-odd"><td><p>noise_partition_cells</p></td>
+<td><p>12</p></td>
+<td><p>Number of cells to partition the noise space in per dimension (to numerically integrate stochastic noise)</p></td>
+</tr>
+<tr class="row-even"><td><p>counterx_refresh_fraction</p></td>
+<td><p>0.50</p></td>
+<td><p>Fraction of the counter example buffer to renew after each iteration</p></td>
+</tr>
+<tr class="row-odd"><td><p>counterx_fraction</p></td>
+<td><p>0.25</p></td>
+<td><p>Fraction of counter examples, compared to the total train data set</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="rebuilding-the-docker-container">
+<h1>8. Rebuilding the Docker container<a class="headerlink" href="#rebuilding-the-docker-container" title="Link to this heading"></a></h1>
+<p>The Docker container (for AMD and X86 architectures) can be rebuilt from the source code by executing the following command in the root directory of the artifact (here, 1.0
+indicates the version):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">docker</span> <span class="n">build</span> <span class="o">--</span><span class="n">platform</span><span class="o">=</span><span class="n">linux</span><span class="o">/</span><span class="n">amd64</span> <span class="o">-</span><span class="n">f</span> <span class="n">Dockerfile</span> <span class="o">--</span><span class="n">tag</span> <span class="n">thombadings</span><span class="o">/</span><span class="n">lograsm</span><span class="p">:</span><span class="n">v1</span> <span class="o">.</span>
+</pre></div>
+</div>
+<p>Similarly, the ARM version can be rebuilt by running</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">docker</span> <span class="n">build</span> <span class="o">--</span><span class="n">platform</span><span class="o">=</span><span class="n">linux</span><span class="o">/</span><span class="n">arm64</span> <span class="o">-</span><span class="n">f</span> <span class="n">Dockerfile</span><span class="o">-</span><span class="n">arm</span> <span class="o">--</span><span class="n">tag</span> <span class="n">thombadings</span><span class="o">/</span><span class="n">lograsm</span><span class="p">:</span><span class="n">v1</span><span class="o">-</span><span class="n">arm</span> <span class="o">.</span>
+</pre></div>
+</div>
+<p>If Docker returns permission errors, consider running the command above with <code class="docutils literal notranslate"><span class="pre">sudo</span></code> (or see the note earlier in this ReadMe for avoiding having to run using sudo).</p>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="Documentation for the logRASM artifact" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="modules.html" class="btn btn-neutral float-right" title="Code documentation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Thom Badings, Wietze Koops, Sebastian Junges, Nils Jansen.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
