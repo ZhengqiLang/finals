@@ -102,7 +102,7 @@ The field `status` in `info.csv` records whether the run succeeded. If the run s
 
 ## Running Multiple Experiments
 
-The thesis tables are produced by running the same command pattern for several models, seeds, distance metrics, weighting schemes, and local-sample budgets.
+The thesis tables are produced by running the same command pattern for several models, seeds, distance metrics, weighting schemes, and local-sample budgets. For getting multiple results especially in thesis, please read the section "Reproducing the Thesis Tables"
 
 A typical same-budget experiment uses combinations of:
 
