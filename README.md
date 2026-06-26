@@ -286,7 +286,3 @@ execute the aggregation scripts
 obtain CSV summaries and LaTeX table rows
 compare generated values with the thesis tables
 ```
-
-## License
-
-This repository is distributed under the license specified in `LICENSE.txt`.
